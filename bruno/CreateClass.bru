@@ -1,0 +1,37 @@
+meta {
+  name: Create Class
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/classes
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{authToken}}
+}
+
+body:json {
+  "name": "History 201",
+  "description": "World history overview"
+}
+
+docs {
+  summary: Create a new class.
+  description: Creates a new class for the authenticated teacher.
+}
+
+response {
+  status: 201
+  body: {
+    "class": {
+      "id": "class-2",
+      "name": "History 201",
+      "description": "World history overview",
+      "teacher_id": "teacher-123"
+    }
+  }
+}

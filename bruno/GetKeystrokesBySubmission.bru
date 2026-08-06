@@ -1,0 +1,33 @@
+meta {
+  name: Get Keystrokes by Submission
+  type: http
+  seq: 10
+}
+
+get {
+  url: {{baseUrl}}/keystrokes/submission-1
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{authToken}}
+}
+
+docs {
+  summary: Get keystroke logs for a submission.
+  description: Retrieves all logged keystroke events for the given submission id.
+}
+
+response {
+  status: 200
+  body: {
+    "logs": [
+      {
+        "id": "log-1",
+        "submission_id": "submission-1",
+        "events": []
+      }
+    ]
+  }
+}

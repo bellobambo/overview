@@ -1,0 +1,40 @@
+meta {
+  name: Create Submission
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/submissions
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{authToken}}
+}
+
+body:json {
+  "assignment_id": "assignment-1",
+  "final_text": "My submission",
+  "final_html": "<p>My submission</p>"
+}
+
+docs {
+  summary: Create a submission.
+  description: Submits work for an assignment.
+}
+
+response {
+  status: 201
+  body: {
+    "submission": {
+      "id": "submission-2",
+      "assignment_id": "assignment-1",
+      "student_id": "user-123",
+      "final_text": "My submission",
+      "final_html": "<p>My submission</p>",
+      "status": "submitted"
+    }
+  }
+}

@@ -1,0 +1,27 @@
+meta {
+  name: Health Check
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/
+  body: none
+  auth: none
+}
+
+headers {
+  Accept: application/json
+}
+
+docs {
+  summary: Check that the API server is running.
+  description: This endpoint confirms the backend is up and responding. It is useful for health checks during local development and deployment verification.
+}
+
+response {
+  status: 200
+  body: {
+    "status": "ok"
+  }
+}
