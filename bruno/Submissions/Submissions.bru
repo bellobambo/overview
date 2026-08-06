@@ -13,24 +13,3 @@ get {
 auth:bearer {
   token: {{authToken}}
 }
-
-docs {
-  summary: Get submissions for the current user.
-  description: Students see their own submissions; teachers see submissions for assignments they created.
-}
-
-response {
-  status: 200
-  body: {
-    "submissions": [
-      {
-        "id": "submission-1",
-        "assignment_id": "assignment-1",
-        "student_id": "user-123",
-        "final_text": "My submission",
-        "final_html": "<p>My submission</p>",
-        "status": "submitted"
-      }
-    ]
-  }
-}

@@ -13,23 +13,3 @@ get {
 auth:bearer {
   token: {{authToken}}
 }
-
-docs {
-  summary: Get classes for the current teacher.
-  description: Returns all classes created by the authenticated teacher, including the teacher's name for easier display in the frontend.
-}
-
-response {
-  status: 200
-  body: {
-    "classes": [
-      {
-        "id": "class-1",
-        "name": "Biology 101",
-        "description": "Intro biology",
-        "teacher_id": "teacher-123",
-        "teacher_name": "Dr. Ada Lovelace"
-      }
-    ]
-  }
-}

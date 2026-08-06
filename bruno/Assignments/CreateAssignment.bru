@@ -22,23 +22,3 @@ body:json {
   "word_limit": 1000,
   "ai_policy": "no-ai"
 }
-
-docs {
-  summary: Create a new assignment.
-  description: Adds a new assignment to a class for the authenticated teacher.
-}
-
-response {
-  status: 201
-  body: {
-    "assignment": {
-      "id": "assignment-2",
-      "class_id": "class-1",
-      "title": "Essay",
-      "description": "Write a 1000-word essay",
-      "due_date": "2026-08-20",
-      "word_limit": 1000,
-      "ai_policy": "no-ai"
-    }
-  }
-}

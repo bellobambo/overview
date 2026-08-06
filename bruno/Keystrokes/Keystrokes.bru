@@ -24,25 +24,3 @@ body:json {
     }
   ]
 }
-
-docs {
-  summary: Save keystroke logs for a submission.
-  description: Stores keystroke events associated with a student submission.
-}
-
-response {
-  status: 201
-  body: {
-    "keystroke_log": {
-      "id": "log-1",
-      "submission_id": "submission-1",
-      "events": [
-        {
-          "type": "input",
-          "timestamp": "2026-08-06T10:00:00Z",
-          "value": "a"
-        }
-      ]
-    }
-  }
-}

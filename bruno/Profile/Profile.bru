@@ -13,22 +13,3 @@ get {
 auth:bearer {
   token: {{authToken}}
 }
-
-docs {
-  summary: Get the authenticated user profile.
-  description: Returns the current user's basic profile information. The sample payload below uses a matric number style identifier instead of a school id.
-}
-
-response {
-  status: 200
-  body: {
-    "user": {
-      "id": "user-123",
-      "email": "student@example.com",
-      "full_name": "Jane Doe",
-      "role": "student",
-      "class_ids": ["class-1"],
-      "matric_number": "20230001"
-    }
-  }
-}
