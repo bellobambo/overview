@@ -1,0 +1,157 @@
+openapi: 3.0.3
+info:
+  title: Overview API
+  version: 1.0.0
+  description: |-
+    Overview backend API for classroom, assignment, submission, and keystroke tracking.
+    Use this file to import the collection into Bruno.
+servers:
+  - url: http://localhost:5000
+paths:
+  /:
+    get:
+      summary: Health check and API overview
+      responses:
+        '200':
+          description: API is running
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  message:
+                    type: string
+                  project:
+                    type: string
+                  endpoints:
+                    type: object
+  /profile:
+    get:
+      summary: Retrieve authenticated user profile
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User profile returned
+  /classes:
+    get:
+      summary: Get classes for current teacher
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Classes list returned
+    post:
+      summary: Create a class
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, description]
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+  /assignments:
+    get:
+      summary: Get assignments for authenticated user
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Assignment list returned
+    post:
+      summary: Create a new assignment
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [class_id, title, description, due_date]
+              properties:
+                class_id:
+                  type: string
+                title:
+                  type: string
+                description:
+                  type: string
+                due_date:
+                  type: string
+                word_limit:
+                  type: integer
+                ai_policy:
+                  type: string
+  /submissions:
+    get:
+      summary: Get submissions for current user
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Submission list returned
+    post:
+      summary: Create a submission
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [assignment_id, final_text, final_html]
+              properties:
+                assignment_id:
+                  type: string
+                final_text:
+                  type: string
+                final_html:
+                  type: string
+  /keystrokes:
+    post:
+      summary: Save keystroke logs for a submission
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [submission_id, events]
+              properties:
+                submission_id:
+                  type: string
+                events:
+                  type: array
+                  items:
+                    type: object
+    get:
+      summary: Get keystroke logs by submission id
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: submissionId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Keystroke logs returned
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
