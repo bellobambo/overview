@@ -17,7 +17,18 @@ const app = (0, express_1.default)();
 app.use((0, cors_1.default)());
 app.use(express_1.default.json());
 app.use((0, morgan_1.default)('dev'));
-app.get('/', (_req, res) => res.json({ status: 'ok' }));
+app.get('/', (_req, res) => res.json({
+    status: 'ok',
+    message: 'Overview backend API is running.',
+    project: 'Overview is a classroom and assignment management platform for teachers and students.',
+    endpoints: {
+        profile: 'GET /profile',
+        classes: 'GET /classes, POST /classes',
+        assignments: 'GET /assignments, POST /assignments',
+        submissions: 'GET /submissions, POST /submissions',
+        keystrokes: 'POST /keystrokes, GET /keystrokes/:submissionId'
+    }
+}));
 app.use('/profile', auth_1.authenticate, profile_1.default);
 app.use('/classes', auth_1.authenticate, auth_1.requireTeacher, classes_1.default);
 app.use('/assignments', auth_1.authenticate, assignments_1.default);

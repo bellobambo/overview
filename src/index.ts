@@ -14,7 +14,18 @@ app.use(cors());
 app.use(express.json());
 app.use(morgan('dev'));
 
-app.get('/', (_req: Request, res: Response) => res.json({ status: 'ok' }));
+app.get('/', (_req: Request, res: Response) => res.json({
+    status: 'ok',
+    message: 'Overview backend API is running.',
+    project: 'Overview is a classroom and assignment management platform for teachers and students.',
+    endpoints: {
+        profile: 'GET /profile',
+        classes: 'GET /classes, POST /classes',
+        assignments: 'GET /assignments, POST /assignments',
+        submissions: 'GET /submissions, POST /submissions',
+        keystrokes: 'POST /keystrokes, GET /keystrokes/:submissionId'
+    }
+}));
 
 app.use('/profile', authenticate, profileRouter);
 app.use('/classes', authenticate, requireTeacher, classesRouter);
