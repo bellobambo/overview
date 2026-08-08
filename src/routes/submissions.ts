@@ -1,5 +1,6 @@
 import express, { Request, Response } from 'express';
 import supabase from '../supabaseClient';
+import { requireStudent } from '../middleware/auth';
 import { sendError, sendSuccess, validateRequiredFields } from '../utils/apiResponse';
 import type { Submission, Assignment, CreateSubmissionBody } from '../types/database';
 
@@ -46,7 +47,7 @@ router.get('/', async (req: Request, res: Response) => {
     return sendSuccess(res, 200, 'Submissions retrieved successfully.', { submissions: data });
 });
 
-router.post('/', async (req: Request, res: Response) => {
+router.post('/', requireStudent, async (req: Request, res: Response) => {
     const missingFields = validateRequiredFields(req.body as Record<string, unknown>, ['assignment_id', 'final_text', 'final_html']);
     if (missingFields.length > 0) {
         return sendError(res, 400, 'Please provide the required submission details.', { missingFields }, 'Validation failed');

@@ -16,9 +16,24 @@ router.post('/', async (req, res) => {
     if (!Array.isArray(events)) {
         return (0, apiResponse_1.sendError)(res, 400, 'The events field must be an array of keystroke events.', undefined, 'Validation failed');
     }
+    const { data: subData, error: subError } = await supabaseClient_1.default
+        .from('submissions')
+        .select('student_id')
+        .eq('id', submission_id)
+        .single();
+    if (subError || !subData) {
+        return (0, apiResponse_1.sendError)(res, 404, 'Submission not found.');
+    }
+    if (subData.student_id !== req.user?.id) {
+        return (0, apiResponse_1.sendError)(res, 403, 'Access denied. You can only log keystrokes for your own submissions.');
+    }
+    const normalizedEvents = events.map(event => ({
+        ...event,
+        ...(typeof event.type === 'string' ? { type: event.type.toLowerCase() } : {})
+    }));
     const { data, error } = await supabaseClient_1.default
         .from('keystroke_logs')
-        .insert([{ submission_id, events }])
+        .insert([{ submission_id, events: normalizedEvents }])
         .select()
         .single();
     if (error) {
@@ -28,6 +43,17 @@ router.post('/', async (req, res) => {
 });
 router.get('/:submissionId', async (req, res) => {
     const submissionId = req.params.submissionId;
+    const { data: subData, error: subError } = await supabaseClient_1.default
+        .from('submissions')
+        .select('student_id')
+        .eq('id', submissionId)
+        .single();
+    if (subError || !subData) {
+        return (0, apiResponse_1.sendError)(res, 404, 'Submission not found.');
+    }
+    if (subData.student_id !== req.user?.id) {
+        return (0, apiResponse_1.sendError)(res, 403, 'Access denied. You can only view keystrokes for your own submissions.');
+    }
     const { data, error } = await supabaseClient_1.default
         .from('keystroke_logs')
         .select('*')

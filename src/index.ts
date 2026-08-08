@@ -3,6 +3,7 @@ import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
 import { authenticate, requireStudent, requireTeacher } from './middleware/auth';
+import authRouter from './routes/auth';
 import profileRouter from './routes/profile';
 import classesRouter from './routes/classes';
 import assignmentsRouter from './routes/assignments';
@@ -19,6 +20,7 @@ app.get('/', (_req: Request, res: Response) => res.json({
     message: 'Overview backend API is running.',
     project: 'Overview is a classroom and assignment management platform for teachers and students.',
     endpoints: {
+        auth: 'POST /auth/signup, POST /auth/signin, POST /auth/signout, POST /auth/refresh',
         profile: 'GET /profile',
         classes: 'GET /classes, POST /classes',
         assignments: 'GET /assignments, POST /assignments',
@@ -27,6 +29,7 @@ app.get('/', (_req: Request, res: Response) => res.json({
     }
 }));
 
+app.use('/auth', authRouter);
 app.use('/profile', authenticate, profileRouter);
 app.use('/classes', authenticate, requireTeacher, classesRouter);
 app.use('/assignments', authenticate, assignmentsRouter);

@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const supabaseClient_1 = __importDefault(require("../supabaseClient"));
+const auth_1 = require("../middleware/auth");
 const apiResponse_1 = require("../utils/apiResponse");
 const router = express_1.default.Router();
 router.get('/', async (req, res) => {
@@ -39,7 +40,7 @@ router.get('/', async (req, res) => {
     }
     return (0, apiResponse_1.sendSuccess)(res, 200, 'Submissions retrieved successfully.', { submissions: data });
 });
-router.post('/', async (req, res) => {
+router.post('/', auth_1.requireStudent, async (req, res) => {
     const missingFields = (0, apiResponse_1.validateRequiredFields)(req.body, ['assignment_id', 'final_text', 'final_html']);
     if (missingFields.length > 0) {
         return (0, apiResponse_1.sendError)(res, 400, 'Please provide the required submission details.', { missingFields }, 'Validation failed');

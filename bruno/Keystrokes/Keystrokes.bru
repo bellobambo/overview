@@ -18,9 +18,11 @@ body:json {
   "submission_id": "submission-1",
   "events": [
     {
-      "type": "input",
+      // Valid event types usually include: "INSERT", "DELETE", "PASTE", "REPLACE"
+      "type": "insert",
       "timestamp": "2026-08-06T10:00:00Z",
-      "value": "a"
+      "value": "a",
+      "cursor_position": 1
     }
   ]
 }

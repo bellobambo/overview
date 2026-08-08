@@ -8,6 +8,7 @@ const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const morgan_1 = __importDefault(require("morgan"));
 const auth_1 = require("./middleware/auth");
+const auth_2 = __importDefault(require("./routes/auth"));
 const profile_1 = __importDefault(require("./routes/profile"));
 const classes_1 = __importDefault(require("./routes/classes"));
 const assignments_1 = __importDefault(require("./routes/assignments"));
@@ -22,6 +23,7 @@ app.get('/', (_req, res) => res.json({
     message: 'Overview backend API is running.',
     project: 'Overview is a classroom and assignment management platform for teachers and students.',
     endpoints: {
+        auth: 'POST /auth/signup, POST /auth/signin, POST /auth/signout, POST /auth/refresh',
         profile: 'GET /profile',
         classes: 'GET /classes, POST /classes',
         assignments: 'GET /assignments, POST /assignments',
@@ -29,6 +31,7 @@ app.get('/', (_req, res) => res.json({
         keystrokes: 'POST /keystrokes, GET /keystrokes/:submissionId'
     }
 }));
+app.use('/auth', auth_2.default);
 app.use('/profile', auth_1.authenticate, profile_1.default);
 app.use('/classes', auth_1.authenticate, auth_1.requireTeacher, classes_1.default);
 app.use('/assignments', auth_1.authenticate, assignments_1.default);

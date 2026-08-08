@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const supabaseClient_1 = __importDefault(require("../supabaseClient"));
+const auth_1 = require("../middleware/auth");
 const apiResponse_1 = require("../utils/apiResponse");
 const router = express_1.default.Router();
 router.get('/', async (req, res) => {
@@ -43,15 +44,16 @@ router.get('/', async (req, res) => {
     }
     return (0, apiResponse_1.sendSuccess)(res, 200, 'Assignments retrieved successfully.', { assignments: data });
 });
-router.post('/', async (req, res) => {
+router.post('/', auth_1.requireTeacher, async (req, res) => {
     const missingFields = (0, apiResponse_1.validateRequiredFields)(req.body, ['class_id', 'title', 'description', 'due_date']);
     if (missingFields.length > 0) {
         return (0, apiResponse_1.sendError)(res, 400, 'Please provide the required assignment details.', { missingFields }, 'Validation failed');
     }
     const { class_id, title, description, due_date, word_limit, ai_policy } = req.body;
+    const normalizedAiPolicy = typeof ai_policy === 'string' ? ai_policy.toLowerCase() : ai_policy;
     const { data, error } = await supabaseClient_1.default
         .from('assignments')
-        .insert([{ class_id, title, description, due_date, word_limit: word_limit ?? null, ai_policy: ai_policy ?? null, teacher_id: req.user?.id }])
+        .insert([{ class_id, title, description, due_date, word_limit: word_limit ?? null, ai_policy: normalizedAiPolicy ?? null, teacher_id: req.user?.id }])
         .select()
         .single();
     if (error) {
