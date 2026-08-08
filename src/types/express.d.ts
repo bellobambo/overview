@@ -1,9 +1,9 @@
-import { Request } from 'express';
+import type { UserRole } from './database';
 
 declare global {
     namespace Express {
         interface UserMetadata {
-            role?: string;
+            role?: UserRole;
         }
 
         interface AuthenticatedUser {

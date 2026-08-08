@@ -17,7 +17,8 @@ router.get('/', async (req, res) => {
         const { data, error } = await supabaseClient_1.default
             .from('assignments')
             .select('*')
-            .eq('teacher_id', userId);
+            .eq('teacher_id', userId)
+            .returns();
         if (error) {
             return (0, apiResponse_1.sendError)(res, 500, 'Unable to load assignments right now. Please try again later.', undefined, error.message);
         }
@@ -26,15 +27,17 @@ router.get('/', async (req, res) => {
     const { data: memberData, error: memberError } = await supabaseClient_1.default
         .from('class_members')
         .select('class_id')
-        .eq('user_id', req.user?.id);
+        .eq('user_id', userId)
+        .returns();
     if (memberError) {
         return (0, apiResponse_1.sendError)(res, 500, 'Unable to load your class assignments right now.', undefined, memberError.message);
     }
-    const classIds = (memberData || []).map((item) => item.class_id);
+    const classIds = (memberData ?? []).map((item) => item.class_id);
     const { data, error } = await supabaseClient_1.default
         .from('assignments')
         .select('*')
-        .in('class_id', classIds);
+        .in('class_id', classIds)
+        .returns();
     if (error) {
         return (0, apiResponse_1.sendError)(res, 500, 'Unable to load assignments right now. Please try again later.', undefined, error.message);
     }
@@ -48,7 +51,8 @@ router.post('/', async (req, res) => {
     const { class_id, title, description, due_date, word_limit, ai_policy } = req.body;
     const { data, error } = await supabaseClient_1.default
         .from('assignments')
-        .insert([{ class_id, title, description, due_date, word_limit, ai_policy, teacher_id: req.user?.id }])
+        .insert([{ class_id, title, description, due_date, word_limit: word_limit ?? null, ai_policy: ai_policy ?? null, teacher_id: req.user?.id }])
+        .select()
         .single();
     if (error) {
         return (0, apiResponse_1.sendError)(res, 500, 'The assignment could not be created. Please try again.', undefined, error.message);

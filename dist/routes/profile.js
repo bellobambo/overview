@@ -9,6 +9,9 @@ const apiResponse_1 = require("../utils/apiResponse");
 const router = express_1.default.Router();
 router.get('/', async (req, res) => {
     const userId = req.user?.id;
+    if (!userId) {
+        return (0, apiResponse_1.sendError)(res, 401, 'Authentication required. Please sign in again to continue.');
+    }
     const { data, error } = await supabaseClient_1.default
         .from('profiles')
         .select('full_name, role, class_ids, school_id')

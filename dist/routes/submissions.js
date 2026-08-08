@@ -13,7 +13,8 @@ router.get('/', async (req, res) => {
         const { data, error } = await supabaseClient_1.default
             .from('submissions')
             .select('*')
-            .eq('student_id', req.user?.id);
+            .eq('student_id', req.user?.id)
+            .returns();
         if (error) {
             return (0, apiResponse_1.sendError)(res, 500, 'Unable to load your submissions right now. Please try again later.', undefined, error.message);
         }
@@ -22,15 +23,17 @@ router.get('/', async (req, res) => {
     const { data: assignmentData, error: assignmentError } = await supabaseClient_1.default
         .from('assignments')
         .select('id')
-        .eq('teacher_id', req.user?.id);
+        .eq('teacher_id', req.user?.id)
+        .returns();
     if (assignmentError) {
         return (0, apiResponse_1.sendError)(res, 500, 'Unable to load submissions for your assignments right now.', undefined, assignmentError.message);
     }
-    const assignmentIds = (assignmentData || []).map((item) => item.id);
+    const assignmentIds = (assignmentData ?? []).map((item) => item.id);
     const { data, error } = await supabaseClient_1.default
         .from('submissions')
         .select('*')
-        .in('assignment_id', assignmentIds);
+        .in('assignment_id', assignmentIds)
+        .returns();
     if (error) {
         return (0, apiResponse_1.sendError)(res, 500, 'Unable to load submissions right now. Please try again later.', undefined, error.message);
     }
@@ -45,6 +48,7 @@ router.post('/', async (req, res) => {
     const { data, error } = await supabaseClient_1.default
         .from('submissions')
         .insert([{ assignment_id, student_id: req.user?.id, final_text, final_html, status: 'submitted' }])
+        .select()
         .single();
     if (error) {
         return (0, apiResponse_1.sendError)(res, 500, 'Your submission could not be saved. Please try again.', undefined, error.message);

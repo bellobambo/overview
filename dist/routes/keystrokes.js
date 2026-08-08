@@ -19,6 +19,7 @@ router.post('/', async (req, res) => {
     const { data, error } = await supabaseClient_1.default
         .from('keystroke_logs')
         .insert([{ submission_id, events }])
+        .select()
         .single();
     if (error) {
         return (0, apiResponse_1.sendError)(res, 500, 'Your keystroke log could not be saved. Please try again.', undefined, error.message);
@@ -30,7 +31,8 @@ router.get('/:submissionId', async (req, res) => {
     const { data, error } = await supabaseClient_1.default
         .from('keystroke_logs')
         .select('*')
-        .eq('submission_id', submissionId);
+        .eq('submission_id', submissionId)
+        .returns();
     if (error) {
         return (0, apiResponse_1.sendError)(res, 500, 'Unable to load keystroke logs for this submission.', undefined, error.message);
     }

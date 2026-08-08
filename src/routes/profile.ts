@@ -1,16 +1,22 @@
 import express, { Request, Response } from 'express';
 import supabase from '../supabaseClient';
 import { sendError, sendSuccess } from '../utils/apiResponse';
+import type { Profile } from '../types/database';
 
 const router = express.Router();
 
 router.get('/', async (req: Request, res: Response) => {
     const userId = req.user?.id;
+
+    if (!userId) {
+        return sendError(res, 401, 'Authentication required. Please sign in again to continue.');
+    }
+
     const { data, error } = await supabase
         .from('profiles')
         .select('full_name, role, class_ids, school_id')
         .eq('id', userId)
-        .single();
+        .single<Pick<Profile, 'full_name' | 'role' | 'class_ids' | 'school_id'>>();
 
     if (error) {
         return sendError(res, 500, 'Unable to load your profile right now. Please try again later.', undefined, error.message);

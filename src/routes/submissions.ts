@@ -1,6 +1,7 @@
 import express, { Request, Response } from 'express';
 import supabase from '../supabaseClient';
 import { sendError, sendSuccess, validateRequiredFields } from '../utils/apiResponse';
+import type { Submission, Assignment, CreateSubmissionBody } from '../types/database';
 
 const router = express.Router();
 
@@ -11,7 +12,8 @@ router.get('/', async (req: Request, res: Response) => {
         const { data, error } = await supabase
             .from('submissions')
             .select('*')
-            .eq('student_id', req.user?.id);
+            .eq('student_id', req.user?.id as string)
+            .returns<Submission[]>();
 
         if (error) {
             return sendError(res, 500, 'Unable to load your submissions right now. Please try again later.', undefined, error.message);
@@ -23,17 +25,19 @@ router.get('/', async (req: Request, res: Response) => {
     const { data: assignmentData, error: assignmentError } = await supabase
         .from('assignments')
         .select('id')
-        .eq('teacher_id', req.user?.id);
+        .eq('teacher_id', req.user?.id as string)
+        .returns<Pick<Assignment, 'id'>[]>();
 
     if (assignmentError) {
         return sendError(res, 500, 'Unable to load submissions for your assignments right now.', undefined, assignmentError.message);
     }
 
-    const assignmentIds = (assignmentData || []).map((item: { id: string }) => item.id);
+    const assignmentIds = (assignmentData ?? []).map((item) => item.id);
     const { data, error } = await supabase
         .from('submissions')
         .select('*')
-        .in('assignment_id', assignmentIds);
+        .in('assignment_id', assignmentIds)
+        .returns<Submission[]>();
 
     if (error) {
         return sendError(res, 500, 'Unable to load submissions right now. Please try again later.', undefined, error.message);
@@ -43,16 +47,17 @@ router.get('/', async (req: Request, res: Response) => {
 });
 
 router.post('/', async (req: Request, res: Response) => {
-    const missingFields = validateRequiredFields(req.body, ['assignment_id', 'final_text', 'final_html']);
+    const missingFields = validateRequiredFields(req.body as Record<string, unknown>, ['assignment_id', 'final_text', 'final_html']);
     if (missingFields.length > 0) {
         return sendError(res, 400, 'Please provide the required submission details.', { missingFields }, 'Validation failed');
     }
 
-    const { assignment_id, final_text, final_html } = req.body;
+    const { assignment_id, final_text, final_html } = req.body as CreateSubmissionBody;
     const { data, error } = await supabase
         .from('submissions')
-        .insert([{ assignment_id, student_id: req.user?.id, final_text, final_html, status: 'submitted' }])
-        .single();
+        .insert([{ assignment_id, student_id: req.user?.id as string, final_text, final_html, status: 'submitted' }])
+        .select()
+        .single<Submission>();
 
     if (error) {
         return sendError(res, 500, 'Your submission could not be saved. Please try again.', undefined, error.message);
