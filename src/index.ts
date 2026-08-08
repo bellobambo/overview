@@ -3,6 +3,7 @@ import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
 import { authenticate, requireStudent, requireTeacher } from './middleware/auth';
+import { sendSuccess, sendError } from './utils/apiResponse';
 import authRouter from './routes/auth';
 import profileRouter from './routes/profile';
 import classesRouter from './routes/classes';
@@ -15,19 +16,19 @@ app.use(cors());
 app.use(express.json());
 app.use(morgan('dev'));
 
-app.get('/', (_req: Request, res: Response) => res.json({
-    status: 'ok',
-    message: 'Overview backend API is running.',
-    project: 'Overview is a classroom and assignment management platform for teachers and students.',
-    endpoints: {
-        auth: 'POST /auth/signup, POST /auth/signin, POST /auth/signout, POST /auth/refresh',
-        profile: 'GET /profile',
-        classes: 'GET /classes, POST /classes',
-        assignments: 'GET /assignments, POST /assignments',
-        submissions: 'GET /submissions, POST /submissions',
-        keystrokes: 'POST /keystrokes, GET /keystrokes/:submissionId'
-    }
-}));
+app.get('/', (_req: Request, res: Response) => {
+    return sendSuccess(res, 200, 'Overview backend API is running.', {
+        project: 'Overview is a classroom and assignment management platform for teachers and students.',
+        endpoints: {
+            auth: 'POST /auth/signup, POST /auth/signin, POST /auth/signout, POST /auth/refresh',
+            profile: 'GET /profile',
+            classes: 'GET /classes, POST /classes',
+            assignments: 'GET /assignments, POST /assignments',
+            submissions: 'GET /submissions, POST /submissions',
+            keystrokes: 'POST /keystrokes, GET /keystrokes/:submissionId'
+        }
+    });
+});
 
 app.use('/auth', authRouter);
 app.use('/profile', authenticate, profileRouter);
@@ -36,9 +37,13 @@ app.use('/assignments', authenticate, assignmentsRouter);
 app.use('/submissions', authenticate, submissionsRouter);
 app.use('/keystrokes', authenticate, requireStudent, keystrokesRouter);
 
-app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+    if (err instanceof SyntaxError && 'status' in err && (err as any).status === 400 && 'body' in err) {
+        return sendError(res, 400, 'Invalid JSON format in request body. Please ensure your JSON is well-formed and does not contain comments.', undefined, 'SyntaxError');
+    }
+
     console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    return sendError(res, 500, 'Internal server error', undefined, err.message);
 });
 
 const port = Number(process.env.PORT ?? 4000);
