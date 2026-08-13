@@ -4,12 +4,6 @@ meta {
   seq: 6
 }
 
-// POST /classes/enroll
-// Called when a student enters a join code shared by their teacher.
-// The join_code is case-insensitive — "a3bf92k1" and "A3BF92K1" both work.
-// Returns 404 if the code doesn't match any class.
-// Returns 409 if the student is already enrolled.
-
 post {
   url: {{baseUrl}}/classes/enroll
   body: json
@@ -22,4 +16,13 @@ auth:bearer {
 
 body:json {
   "join_code": "A3BF92K1"
+}
+
+docs {
+  Called when a student enters a join code shared by their teacher.
+  The join_code is case-insensitive — "a3bf92k1" and "A3BF92K1" both work.
+
+  Possible error responses:
+    404 - No class found with that join code
+    409 - Student is already enrolled in this class
 }

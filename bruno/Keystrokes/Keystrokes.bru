@@ -4,19 +4,6 @@ meta {
   seq: 9
 }
 
-// POST /keystrokes
-// Called every ~10 seconds by the editor to flush the keystroke buffer.
-// Each event in the array represents a single editor action.
-//
-// Supported event types: "insert", "delete", "paste", "replace"
-//
-// New fields introduced in Phase 3 (all stored in JSONB, no DB changes needed):
-//   position      — cursor index in the document at time of event
-//   content       — the text that was inserted or pasted
-//   deletedContent — the text that was removed (for delete/replace events)
-//   length        — character count of the inserted/deleted content
-//   timestamp     — Unix epoch in milliseconds
-
 post {
   url: {{baseUrl}}/keystrokes
   body: json
@@ -59,4 +46,20 @@ body:json {
       "timestamp": 1723240490000
     }
   ]
+}
+
+docs {
+  Called every ~10 seconds by the editor to flush the keystroke buffer in bulk.
+  Each object in the events array represents one editor action.
+
+  Supported event types: insert, delete, paste, replace
+
+  Phase 3 event shape fields:
+    position       - cursor index in the document at the time of the event
+    content        - text that was inserted or pasted
+    deletedContent - text that was removed (used on delete/replace events)
+    length         - character count of the inserted or deleted content
+    timestamp      - Unix epoch in milliseconds
+
+  All fields are stored as JSONB — no DB schema changes required.
 }

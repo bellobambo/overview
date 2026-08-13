@@ -4,12 +4,6 @@ meta {
   seq: 10
 }
 
-// PATCH /submissions/:id
-// Called every ~10 seconds by the editor to autosave the student's draft.
-// Replace the id in the URL with a real submission UUID.
-// status is optional — omit it to keep the current status, or pass "submitted"
-// when the student clicks the final Submit button.
-
 patch {
   url: {{baseUrl}}/submissions/your-submission-uuid-here
   body: json
@@ -24,4 +18,16 @@ body:json {
   "final_text": "The causes of World War I were numerous and complex...",
   "final_html": "<p>The causes of World War I were numerous and complex...</p>",
   "status": "draft"
+}
+
+docs {
+  Called every ~10 seconds by the editor to autosave the student's draft.
+  Replace "your-submission-uuid-here" in the URL with the real submission UUID.
+
+  status is optional:
+  - Omit it (or pass "draft") during normal autosave
+  - Pass "submitted" when the student clicks the final Submit button
+
+  Security: Only the student who owns the submission can update it.
+  Returns 409 if the submission has already been graded.
 }
