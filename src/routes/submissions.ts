@@ -2,7 +2,7 @@ import express, { Request, Response } from 'express';
 import supabase from '../supabaseClient';
 import { requireStudent } from '../middleware/auth';
 import { sendError, sendSuccess, validateRequiredFields } from '../utils/apiResponse';
-import type { Submission, Assignment, CreateSubmissionBody } from '../types/database';
+import type { Submission, Assignment, CreateSubmissionBody, UpdateSubmissionBody } from '../types/database';
 
 const router = express.Router();
 
@@ -47,16 +47,24 @@ router.get('/', async (req: Request, res: Response) => {
     return sendSuccess(res, 200, 'Submissions retrieved successfully.', { submissions: data });
 });
 
+// B2: POST — creates a submission; status defaults to 'draft' so the editor
+// can immediately get a submission_id without counting as a final submission.
 router.post('/', requireStudent, async (req: Request, res: Response) => {
-    const missingFields = validateRequiredFields(req.body as Record<string, unknown>, ['assignment_id', 'final_text', 'final_html']);
+    const missingFields = validateRequiredFields(req.body as Record<string, unknown>, ['assignment_id']);
     if (missingFields.length > 0) {
         return sendError(res, 400, 'Please provide the required submission details.', { missingFields }, 'Validation failed');
     }
 
-    const { assignment_id, final_text, final_html } = req.body as CreateSubmissionBody;
+    const { assignment_id, final_text = '', final_html = '', status = 'draft' } = req.body as CreateSubmissionBody;
+
+    const allowedStatuses = ['draft', 'submitted'];
+    if (!allowedStatuses.includes(status!)) {
+        return sendError(res, 400, 'Invalid status value. Must be \'draft\' or \'submitted\'.', undefined, 'Validation failed');
+    }
+
     const { data, error } = await supabase
         .from('submissions')
-        .insert([{ assignment_id, student_id: req.user?.id as string, final_text, final_html, status: 'submitted' }])
+        .insert([{ assignment_id, student_id: req.user?.id as string, final_text, final_html, status }])
         .select()
         .single<Submission>();
 
@@ -65,6 +73,59 @@ router.post('/', requireStudent, async (req: Request, res: Response) => {
     }
 
     return sendSuccess(res, 201, 'Submission created successfully.', { submission: data });
+});
+
+// B1: PATCH — autosave endpoint; students update their own draft every ~10 s.
+// Verifies ownership before allowing any update.
+router.patch('/:id', requireStudent, async (req: Request, res: Response) => {
+    const submissionId: string = req.params.id;
+
+    const missingFields = validateRequiredFields(req.body as Record<string, unknown>, ['final_text', 'final_html']);
+    if (missingFields.length > 0) {
+        return sendError(res, 400, 'Please provide the required fields to save your submission.', { missingFields }, 'Validation failed');
+    }
+
+    const { final_text, final_html, status } = req.body as UpdateSubmissionBody;
+
+    if (status !== undefined && !['draft', 'submitted'].includes(status)) {
+        return sendError(res, 400, 'Invalid status value. Must be \'draft\' or \'submitted\'.', undefined, 'Validation failed');
+    }
+
+    // Ownership check — student may only update their own submission.
+    const { data: existing, error: fetchError } = await supabase
+        .from('submissions')
+        .select('student_id, status')
+        .eq('id', submissionId)
+        .single<Pick<Submission, 'student_id' | 'status'>>();
+
+    if (fetchError || !existing) {
+        return sendError(res, 404, 'Submission not found.');
+    }
+
+    if (existing.student_id !== req.user?.id) {
+        return sendError(res, 403, 'Access denied. You can only update your own submissions.');
+    }
+
+    // Prevent editing an already-graded submission.
+    if (existing.status === 'graded') {
+        return sendError(res, 409, 'This submission has already been graded and cannot be edited.');
+    }
+
+    const updatePayload: Partial<Submission> = { final_text, final_html };
+    if (status !== undefined) updatePayload.status = status;
+
+    const { data, error } = await supabase
+        .from('submissions')
+        .update(updatePayload)
+        .eq('id', submissionId)
+        .select()
+        .single<Submission>();
+
+    if (error) {
+        return sendError(res, 500, 'Your submission could not be saved. Please try again.', undefined, error.message);
+    }
+
+    return sendSuccess(res, 200, 'Submission saved successfully.', { submission: data });
 });
 
 export default router;

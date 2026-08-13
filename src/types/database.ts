@@ -21,6 +21,7 @@ export interface Class {
     teacher_id: string;
     name: string;
     description: string | null;
+    join_code: string;
     created_at: string;
     updated_at: string;
 }
@@ -83,11 +84,22 @@ export interface CreateAssignmentBody {
 
 export interface CreateSubmissionBody {
     assignment_id: string;
+    final_text?: string;
+    final_html?: string;
+    status?: SubmissionStatus;
+}
+
+export interface UpdateSubmissionBody {
     final_text: string;
     final_html: string;
+    status?: SubmissionStatus;
 }
 
 export interface CreateKeystrokeLogBody {
     submission_id: string;
     events: Record<string, unknown>[];
+}
+
+export interface EnrollClassBody {
+    join_code: string;
 }

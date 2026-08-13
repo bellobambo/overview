@@ -4,6 +4,12 @@ meta {
   seq: 8
 }
 
+// POST /submissions
+// Called immediately when a student opens an assignment in the editor.
+// Only assignment_id is required — the rest default to empty strings and "draft".
+// This gives us a submission_id right away to attach keystroke logs to.
+// To create a final submission directly, pass status: "submitted".
+
 post {
   url: {{baseUrl}}/submissions
   body: json
@@ -15,7 +21,8 @@ auth:bearer {
 }
 
 body:json {
-  "assignment_id": "assignment-1",
-  "final_text": "My submission",
-  "final_html": "<p>My submission</p>"
+  "assignment_id": "your-assignment-uuid-here",
+  "final_text": "",
+  "final_html": "",
+  "status": "draft"
 }

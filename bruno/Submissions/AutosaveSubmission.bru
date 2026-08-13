@@ -1,0 +1,27 @@
+meta {
+  name: Autosave Submission (Draft)
+  type: http
+  seq: 10
+}
+
+// PATCH /submissions/:id
+// Called every ~10 seconds by the editor to autosave the student's draft.
+// Replace the id in the URL with a real submission UUID.
+// status is optional — omit it to keep the current status, or pass "submitted"
+// when the student clicks the final Submit button.
+
+patch {
+  url: {{baseUrl}}/submissions/your-submission-uuid-here
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{authToken}}
+}
+
+body:json {
+  "final_text": "The causes of World War I were numerous and complex...",
+  "final_html": "<p>The causes of World War I were numerous and complex...</p>",
+  "status": "draft"
+}

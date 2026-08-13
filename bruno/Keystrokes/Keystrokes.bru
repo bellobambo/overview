@@ -4,6 +4,19 @@ meta {
   seq: 9
 }
 
+// POST /keystrokes
+// Called every ~10 seconds by the editor to flush the keystroke buffer.
+// Each event in the array represents a single editor action.
+//
+// Supported event types: "insert", "delete", "paste", "replace"
+//
+// New fields introduced in Phase 3 (all stored in JSONB, no DB changes needed):
+//   position      — cursor index in the document at time of event
+//   content       — the text that was inserted or pasted
+//   deletedContent — the text that was removed (for delete/replace events)
+//   length        — character count of the inserted/deleted content
+//   timestamp     — Unix epoch in milliseconds
+
 post {
   url: {{baseUrl}}/keystrokes
   body: json
@@ -15,14 +28,35 @@ auth:bearer {
 }
 
 body:json {
-  "submission_id": "submission-1",
+  "submission_id": "your-submission-uuid-here",
   "events": [
     {
-      // Valid event types usually include: "INSERT", "DELETE", "PASTE", "REPLACE"
       "type": "insert",
-      "timestamp": "2026-08-06T10:00:00Z",
-      "value": "a",
-      "cursor_position": 1
+      "position": 0,
+      "content": "The ",
+      "length": 4,
+      "timestamp": 1723240481000
+    },
+    {
+      "type": "insert",
+      "position": 4,
+      "content": "causes",
+      "length": 6,
+      "timestamp": 1723240482500
+    },
+    {
+      "type": "delete",
+      "position": 3,
+      "deletedContent": "s",
+      "length": 1,
+      "timestamp": 1723240484000
+    },
+    {
+      "type": "paste",
+      "position": 10,
+      "content": "of World War I",
+      "length": 14,
+      "timestamp": 1723240490000
     }
   ]
 }
