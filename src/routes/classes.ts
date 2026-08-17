@@ -12,11 +12,39 @@ function generateJoinCode(): string {
            Math.random().toString(36).substring(2, 6).toUpperCase();
 }
 
-router.get('/', async (_req: Request, res: Response) => {
+router.get('/', async (req: Request, res: Response) => {
+    const role = req.user?.user_metadata?.role;
+    const userId = req.user?.id as string;
+
+    if (role === 'teacher') {
+        const { data, error } = await supabase
+            .from('classes')
+            .select('*')
+            .eq('teacher_id', userId)
+            .returns<Class[]>();
+
+        if (error) {
+            return sendError(res, 500, 'Unable to fetch your classes right now. Please try again later.', undefined, error.message);
+        }
+        return sendSuccess(res, 200, 'Classes retrieved successfully.', { classes: data });
+    }
+
+    // Student logic: Get classes they are enrolled in
+    const { data: memberData, error: memberError } = await supabase
+        .from('class_members')
+        .select('class_id')
+        .eq('user_id', userId)
+        .returns<Pick<ClassMember, 'class_id'>[]>();
+
+    if (memberError) {
+        return sendError(res, 500, 'Unable to load your enrolled classes right now.', undefined, memberError.message);
+    }
+
+    const classIds = (memberData ?? []).map((item) => item.class_id);
     const { data, error } = await supabase
         .from('classes')
         .select('*')
-        .eq('teacher_id', _req.user?.id as string)
+        .in('id', classIds)
         .returns<Class[]>();
 
     if (error) {
@@ -26,7 +54,7 @@ router.get('/', async (_req: Request, res: Response) => {
     return sendSuccess(res, 200, 'Classes retrieved successfully.', { classes: data });
 });
 
-router.post('/', async (req: Request, res: Response) => {
+router.post('/', requireTeacher, async (req: Request, res: Response) => {
     const missingFields = validateRequiredFields(req.body as Record<string, unknown>, ['name', 'description']);
     if (missingFields.length > 0) {
         return sendError(res, 400, 'Please provide the required class details.', { missingFields }, 'Validation failed');

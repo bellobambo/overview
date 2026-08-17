@@ -3,9 +3,11 @@ import supabase from '../supabaseClient';
 import { sendError, sendSuccess, validateRequiredFields } from '../utils/apiResponse';
 import type { KeystrokeLog, CreateKeystrokeLogBody } from '../types/database';
 
+import { requireStudent } from '../middleware/auth';
+
 const router = express.Router();
 
-router.post('/', async (req: Request, res: Response) => {
+router.post('/', requireStudent, async (req: Request, res: Response) => {
     const missingFields = validateRequiredFields(req.body as Record<string, unknown>, ['submission_id', 'events']);
     if (missingFields.length > 0) {
         return sendError(res, 400, 'Please provide the required keystroke data.', { missingFields }, 'Validation failed');
@@ -53,7 +55,7 @@ router.get('/:submissionId', async (req: Request, res: Response) => {
 
     const { data: subData, error: subError } = await supabase
         .from('submissions')
-        .select('student_id')
+        .select('student_id, assignment_id')
         .eq('id', submissionId)
         .single();
 
@@ -62,20 +64,37 @@ router.get('/:submissionId', async (req: Request, res: Response) => {
     }
 
     if (subData.student_id !== req.user?.id) {
-        return sendError(res, 403, 'Access denied. You can only view keystrokes for your own submissions.');
+        if (req.user?.user_metadata?.role === 'teacher') {
+            const { data: assignmentData } = await supabase
+                .from('assignments')
+                .select('teacher_id')
+                .eq('id', subData.assignment_id)
+                .single();
+            
+            if (!assignmentData || assignmentData.teacher_id !== req.user?.id) {
+                return sendError(res, 403, 'Access denied. You can only view keystrokes for your own assignments.');
+            }
+        } else {
+            return sendError(res, 403, 'Access denied. You can only view keystrokes for your own submissions.');
+        }
     }
 
     const { data, error } = await supabase
         .from('keystroke_logs')
         .select('*')
         .eq('submission_id', submissionId)
+        .order('created_at', { ascending: true })
         .returns<KeystrokeLog[]>();
 
     if (error) {
         return sendError(res, 500, 'Unable to load keystroke logs for this submission.', undefined, error.message);
     }
 
-    return sendSuccess(res, 200, 'Keystroke logs retrieved successfully.', { logs: data });
+    // Flatten and sort the events by absolute timestamp
+    const flattenedEvents = data.flatMap(log => log.events || []);
+    flattenedEvents.sort((a, b) => ((a.timestamp as number) || 0) - ((b.timestamp as number) || 0));
+
+    return sendSuccess(res, 200, 'Keystroke logs retrieved successfully.', { logs: flattenedEvents });
 });
 
 export default router;

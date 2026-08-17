@@ -10,6 +10,7 @@ declare global {
             id: string;
             email?: string;
             user_metadata?: UserMetadata;
+            role?: UserRole;
         }
 
         interface Request {

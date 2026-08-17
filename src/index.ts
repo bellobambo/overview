@@ -13,7 +13,7 @@ import keystrokesRouter from './routes/keystrokes';
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '5mb' }));
 app.use(morgan('dev'));
 
 app.get('/', (_req: Request, res: Response) => {
@@ -32,10 +32,10 @@ app.get('/', (_req: Request, res: Response) => {
 
 app.use('/auth', authRouter);
 app.use('/profile', authenticate, profileRouter);
-app.use('/classes', authenticate, requireTeacher, classesRouter);
+app.use('/classes', authenticate, classesRouter);
 app.use('/assignments', authenticate, assignmentsRouter);
 app.use('/submissions', authenticate, submissionsRouter);
-app.use('/keystrokes', authenticate, requireStudent, keystrokesRouter);
+app.use('/keystrokes', authenticate, keystrokesRouter);
 
 app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     if (err instanceof SyntaxError && 'status' in err && (err as any).status === 400 && 'body' in err) {

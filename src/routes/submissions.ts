@@ -36,9 +36,8 @@ router.get('/', async (req: Request, res: Response) => {
     const assignmentIds = (assignmentData ?? []).map((item) => item.id);
     const { data, error } = await supabase
         .from('submissions')
-        .select('*')
-        .in('assignment_id', assignmentIds)
-        .returns<Submission[]>();
+        .select('*, profiles!student_id(full_name)')
+        .in('assignment_id', assignmentIds);
 
     if (error) {
         return sendError(res, 500, 'Unable to load submissions right now. Please try again later.', undefined, error.message);
@@ -62,9 +61,23 @@ router.post('/', requireStudent, async (req: Request, res: Response) => {
         return sendError(res, 400, 'Invalid status value. Must be \'draft\' or \'submitted\'.', undefined, 'Validation failed');
     }
 
+    const student_id = req.user?.id as string;
+
+    // Prevent duplicate submissions by checking if one already exists
+    const { data: existingSub, error: checkError } = await supabase
+        .from('submissions')
+        .select('*')
+        .eq('assignment_id', assignment_id)
+        .eq('student_id', student_id)
+        .maybeSingle<Submission>();
+
+    if (existingSub) {
+        return sendSuccess(res, 200, 'Submission already exists.', { submission: existingSub });
+    }
+
     const { data, error } = await supabase
         .from('submissions')
-        .insert([{ assignment_id, student_id: req.user?.id as string, final_text, final_html, status }])
+        .insert([{ assignment_id, student_id, final_text, final_html, status }])
         .select()
         .single<Submission>();
 

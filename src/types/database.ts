@@ -55,6 +55,7 @@ export interface Submission {
     status: SubmissionStatus;
     created_at: string;
     updated_at: string;
+    profiles?: { full_name: string | null };
 }
 
 export interface KeystrokeLog {

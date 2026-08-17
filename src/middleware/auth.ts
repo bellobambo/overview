@@ -18,23 +18,30 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
         return sendError(res, 401, 'Authentication failed. Your session may have expired.', undefined, 'Invalid or expired access token');
     }
 
+    const { data: profileData } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', data.user.id)
+        .single();
+
     req.user = {
         id: data.user.id,
         email: data.user.email ?? undefined,
-        user_metadata: data.user.user_metadata as Express.UserMetadata | undefined
+        user_metadata: data.user.user_metadata as Express.UserMetadata | undefined,
+        role: profileData?.role ?? undefined
     };
     next();
 }
 
 export function requireTeacher(req: Request, res: Response, next: NextFunction) {
-    if (req.user?.user_metadata?.role !== 'teacher') {
+    if (req.user?.role !== 'teacher') {
         return sendError(res, 403, 'Access denied. Teacher privileges are required.', undefined, 'Teacher role required');
     }
     next();
 }
 
 export function requireStudent(req: Request, res: Response, next: NextFunction) {
-    if (req.user?.user_metadata?.role !== 'student') {
+    if (req.user?.role !== 'student') {
         return sendError(res, 403, 'Access denied. Student privileges are required.', undefined, 'Student role required');
     }
     next();
