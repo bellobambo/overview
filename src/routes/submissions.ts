@@ -1,6 +1,6 @@
 import express, { Request, Response } from 'express';
 import supabase from '../supabaseClient';
-import { requireStudent } from '../middleware/auth';
+import { requireStudent, requireTeacher } from '../middleware/auth';
 import { sendError, sendSuccess, validateRequiredFields } from '../utils/apiResponse';
 import type { Submission, Assignment, CreateSubmissionBody, UpdateSubmissionBody } from '../types/database';
 
@@ -139,6 +139,51 @@ router.patch('/:id', requireStudent, async (req: Request, res: Response) => {
     }
 
     return sendSuccess(res, 200, 'Submission saved successfully.', { submission: data });
+});
+
+// Teacher endpoint to grade/update status of a submission
+router.patch('/:id/grade', requireTeacher, async (req: Request, res: Response) => {
+    const submissionId: string = req.params.id;
+    const { status } = req.body as { status: string };
+
+    const allowedStatuses = ['graded', 'revision_requested', 'flagged'];
+    if (!status || !allowedStatuses.includes(status)) {
+        return sendError(res, 400, 'Invalid status value. Must be \'graded\', \'revision_requested\', or \'flagged\'.', undefined, 'Validation failed');
+    }
+
+    const { data: existing, error: fetchError } = await supabase
+        .from('submissions')
+        .select('assignment_id')
+        .eq('id', submissionId)
+        .single<{ assignment_id: string }>();
+
+    if (fetchError || !existing) {
+        return sendError(res, 404, 'Submission not found.');
+    }
+
+    // Verify teacher owns the assignment (simplified for now, ideally checking assignments.teacher_id)
+    const { data: assignment, error: assignmentError } = await supabase
+        .from('assignments')
+        .select('teacher_id')
+        .eq('id', existing.assignment_id)
+        .single<{ teacher_id: string }>();
+
+    if (assignmentError || !assignment || assignment.teacher_id !== req.user?.id) {
+        return sendError(res, 403, 'Access denied. You can only grade submissions for your own assignments.');
+    }
+
+    const { data, error } = await supabase
+        .from('submissions')
+        .update({ status })
+        .eq('id', submissionId)
+        .select()
+        .single<Submission>();
+
+    if (error) {
+        return sendError(res, 500, 'Could not update the submission status. Please try again.', undefined, error.message);
+    }
+
+    return sendSuccess(res, 200, 'Submission graded successfully.', { submission: data });
 });
 
 export default router;

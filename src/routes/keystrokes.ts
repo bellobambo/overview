@@ -32,9 +32,14 @@ router.post('/', requireStudent, async (req: Request, res: Response) => {
         return sendError(res, 403, 'Access denied. You can only log keystrokes for your own submissions.');
     }
 
-    const normalizedEvents = events.map(event => ({
+    const chunk_seq = req.body.chunk_seq || 0;
+    const server_received_at = new Date().toISOString();
+
+    const normalizedEvents = events.map((event: any) => ({
         ...event,
-        ...(typeof event.type === 'string' ? { type: event.type.toLowerCase() } : {})
+        ...(typeof event.type === 'string' ? { type: event.type.toLowerCase() } : {}),
+        chunk_seq,
+        server_received_at
     }));
 
     const { data, error } = await supabase
@@ -90,11 +95,29 @@ router.get('/:submissionId', async (req: Request, res: Response) => {
         return sendError(res, 500, 'Unable to load keystroke logs for this submission.', undefined, error.message);
     }
 
-    // Flatten and sort the events by absolute timestamp
+    // Flatten and sort the events by chunk_seq then timestamp
     const flattenedEvents = data.flatMap(log => log.events || []);
-    flattenedEvents.sort((a, b) => ((a.timestamp as number) || 0) - ((b.timestamp as number) || 0));
+    
+    // Simple deduplication based on exact same timestamp and chunk_seq (idempotency)
+    const uniqueEventsMap = new Map();
+    for (const ev of flattenedEvents) {
+        const key = `${(ev as any).chunk_seq || 0}_${(ev as any).timestamp}`;
+        // If a duplicate payload was sent, they will have same chunk_seq and timestamp
+        // we can safely overwrite it.
+        if (!uniqueEventsMap.has(key) || (ev as any).perfDelta) {
+           uniqueEventsMap.set(key, ev);
+        }
+    }
+    
+    const uniqueEvents = Array.from(uniqueEventsMap.values());
+    uniqueEvents.sort((a, b) => {
+        const seqA = (a.chunk_seq as number) || 0;
+        const seqB = (b.chunk_seq as number) || 0;
+        if (seqA !== seqB) return seqA - seqB;
+        return ((a.timestamp as number) || 0) - ((b.timestamp as number) || 0);
+    });
 
-    return sendSuccess(res, 200, 'Keystroke logs retrieved successfully.', { logs: flattenedEvents });
+    return sendSuccess(res, 200, 'Keystroke logs retrieved successfully.', { logs: uniqueEvents });
 });
 
 export default router;

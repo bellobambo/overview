@@ -4,7 +4,27 @@
 
 export type UserRole = 'teacher' | 'student' | 'admin';
 export type AiPolicy = 'allowed' | 'restricted' | 'forbidden';
-export type SubmissionStatus = 'draft' | 'submitted' | 'graded';
+export type SubmissionStatus = 'draft' | 'submitted' | 'graded' | 'revision_requested' | 'flagged';
+
+export interface StepEvent {
+  type: 'step';
+  stepJSON: Record<string, any>;
+  timestamp: number;
+  perfDelta?: number;
+}
+
+export type KeystrokeEvent = 
+  | {
+      type: 'insert' | 'delete' | 'paste' | 'mark';
+      position: number;        // The exact index of the change
+      content?: string;        // What was inserted/pasted
+      length?: number;         // How many characters were deleted/inserted (or mark range)
+      deletedContent?: string; // Captured text that was deleted (crucial for validation)
+      mark?: string;           // 'bold', 'italic', 'underline', etc.
+      action?: 'add' | 'remove'; // Mark action
+      timestamp: number;       // Unix epoch milliseconds
+    }
+  | StepEvent;
 
 export interface Profile {
     id: string;
