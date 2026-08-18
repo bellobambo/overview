@@ -21,21 +21,27 @@ async function authenticate(req, res, next) {
     if (error || !data?.user) {
         return (0, apiResponse_1.sendError)(res, 401, 'Authentication failed. Your session may have expired.', undefined, 'Invalid or expired access token');
     }
+    const { data: profileData } = await supabaseClient_1.default
+        .from('profiles')
+        .select('role')
+        .eq('id', data.user.id)
+        .single();
     req.user = {
         id: data.user.id,
         email: data.user.email ?? undefined,
-        user_metadata: data.user.user_metadata
+        user_metadata: data.user.user_metadata,
+        role: profileData?.role ?? undefined
     };
     next();
 }
 function requireTeacher(req, res, next) {
-    if (req.user?.user_metadata?.role !== 'teacher') {
+    if (req.user?.role !== 'teacher') {
         return (0, apiResponse_1.sendError)(res, 403, 'Access denied. Teacher privileges are required.', undefined, 'Teacher role required');
     }
     next();
 }
 function requireStudent(req, res, next) {
-    if (req.user?.user_metadata?.role !== 'student') {
+    if (req.user?.role !== 'student') {
         return (0, apiResponse_1.sendError)(res, 403, 'Access denied. Student privileges are required.', undefined, 'Student role required');
     }
     next();

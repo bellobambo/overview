@@ -17,7 +17,7 @@ const submissions_1 = __importDefault(require("./routes/submissions"));
 const keystrokes_1 = __importDefault(require("./routes/keystrokes"));
 const app = (0, express_1.default)();
 app.use((0, cors_1.default)());
-app.use(express_1.default.json());
+app.use(express_1.default.json({ limit: '5mb' }));
 app.use((0, morgan_1.default)('dev'));
 app.get('/', (_req, res) => {
     return (0, apiResponse_1.sendSuccess)(res, 200, 'Overview backend API is running.', {
@@ -34,10 +34,10 @@ app.get('/', (_req, res) => {
 });
 app.use('/auth', auth_2.default);
 app.use('/profile', auth_1.authenticate, profile_1.default);
-app.use('/classes', auth_1.authenticate, auth_1.requireTeacher, classes_1.default);
+app.use('/classes', auth_1.authenticate, classes_1.default);
 app.use('/assignments', auth_1.authenticate, assignments_1.default);
 app.use('/submissions', auth_1.authenticate, submissions_1.default);
-app.use('/keystrokes', auth_1.authenticate, auth_1.requireStudent, keystrokes_1.default);
+app.use('/keystrokes', auth_1.authenticate, keystrokes_1.default);
 app.use((err, _req, res, _next) => {
     if (err instanceof SyntaxError && 'status' in err && err.status === 400 && 'body' in err) {
         return (0, apiResponse_1.sendError)(res, 400, 'Invalid JSON format in request body. Please ensure your JSON is well-formed and does not contain comments.', undefined, 'SyntaxError');

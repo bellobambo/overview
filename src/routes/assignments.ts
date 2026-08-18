@@ -39,6 +39,11 @@ router.get('/', async (req: Request, res: Response) => {
     }
 
     const classIds = (memberData ?? []).map((item) => item.class_id);
+    
+    if (classIds.length === 0) {
+        return sendSuccess(res, 200, 'Assignments retrieved successfully.', { assignments: [] });
+    }
+
     const { data, error } = await supabase
         .from('assignments')
         .select('*')
