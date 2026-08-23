@@ -2,7 +2,7 @@ import express, { Request, Response } from 'express';
 import supabase from '../supabaseClient';
 import { requireStudent, requireTeacher } from '../middleware/auth';
 import { sendError, sendSuccess, validateRequiredFields } from '../utils/apiResponse';
-import type { Class, ClassMember, CreateClassBody, EnrollClassBody } from '../types/database';
+import type { Class, ClassMember, CreateClassBody, EnrollClassBody, UpdateClassBody } from '../types/database';
 
 const router = express.Router();
 
@@ -21,6 +21,7 @@ router.get('/', async (req: Request, res: Response) => {
             .from('classes')
             .select('*')
             .eq('teacher_id', userId)
+            .eq('is_archived', false)
             .returns<Class[]>();
 
         if (error) {
@@ -50,6 +51,7 @@ router.get('/', async (req: Request, res: Response) => {
         .from('classes')
         .select('*')
         .in('id', classIds)
+        .eq('is_archived', false)
         .returns<Class[]>();
 
     if (error) {
@@ -126,6 +128,59 @@ router.post('/enroll', requireStudent, async (req: Request, res: Response) => {
     }
 
     return sendSuccess(res, 201, `Successfully enrolled in "${classData.name}".`, { enrollment: data });
+});
+
+// PATCH /classes/:id — lets a teacher edit or archive one of their own classes.
+// Accepts: name, description, is_archived. Verifies teacher ownership before updating.
+router.patch('/:id', requireTeacher, async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const teacherId = req.user?.id as string;
+    const { name, description, is_archived } = req.body as UpdateClassBody;
+
+    // Ensure at least one updatable field was provided.
+    if (name === undefined && description === undefined && is_archived === undefined) {
+        return sendError(res, 400, 'Please provide at least one field to update (name, description, or is_archived).', undefined, 'Validation failed');
+    }
+
+    // Verify the teacher owns this class before allowing any changes.
+    const { data: existing, error: fetchError } = await supabase
+        .from('classes')
+        .select('id')
+        .eq('id', id)
+        .eq('teacher_id', teacherId)
+        .maybeSingle<Pick<Class, 'id'>>();
+
+    if (fetchError) {
+        return sendError(res, 500, 'Unable to verify class ownership right now. Please try again.', undefined, fetchError.message);
+    }
+    if (!existing) {
+        return sendError(res, 404, 'Class not found or you do not have permission to update it.');
+    }
+
+    // Build the update payload from only the fields that were provided.
+    const updates: Partial<Pick<Class, 'name' | 'description' | 'is_archived'>> = {};
+    if (name !== undefined) updates.name = name;
+    if (description !== undefined) updates.description = description;
+    if (is_archived !== undefined) updates.is_archived = is_archived;
+
+    const { data, error } = await supabase
+        .from('classes')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single<Class>();
+
+    if (error) {
+        return sendError(res, 500, 'Unable to update the class right now. Please try again.', undefined, error.message);
+    }
+
+    const message = is_archived === true
+        ? 'Class archived successfully.'
+        : is_archived === false
+            ? 'Class restored successfully.'
+            : 'Class updated successfully.';
+
+    return sendSuccess(res, 200, message, { class: data });
 });
 
 export default router;

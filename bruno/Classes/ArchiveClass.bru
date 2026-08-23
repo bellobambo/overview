@@ -1,0 +1,33 @@
+meta {
+  name: Archive Class
+  type: http
+  seq: 6
+}
+
+patch {
+  url: {{baseUrl}}/classes/:id
+  body: json
+  auth: bearer
+}
+
+params:path {
+  id: class-uuid-here
+}
+
+auth:bearer {
+  token: {{authToken}}
+}
+
+body:json {
+  "is_archived": true
+}
+
+docs {
+  Archives a class so it no longer appears in the active dashboard.
+  Data is preserved — set is_archived to false to restore it.
+  Only the owning teacher can archive a class.
+
+  Possible error responses:
+    403 - Authenticated user is not a teacher
+    404 - Class not found or not owned by this teacher
+}

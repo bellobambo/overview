@@ -42,6 +42,7 @@ export interface Class {
     name: string;
     description: string | null;
     join_code: string;
+    is_archived: boolean;
     created_at: string;
     updated_at: string;
 }
@@ -62,6 +63,7 @@ export interface Assignment {
     due_date: string | null;
     word_limit: number | null;
     ai_policy: AiPolicy | null;
+    is_archived: boolean;
     created_at: string;
     updated_at: string;
 }
@@ -123,4 +125,19 @@ export interface CreateKeystrokeLogBody {
 
 export interface EnrollClassBody {
     join_code: string;
+}
+
+export interface UpdateClassBody {
+    name?: string;
+    description?: string;
+    is_archived?: boolean;
+}
+
+export interface UpdateAssignmentBody {
+    title?: string;
+    description?: string;
+    due_date?: string;
+    word_limit?: number | null;
+    ai_policy?: AiPolicy | null;
+    is_archived?: boolean;
 }

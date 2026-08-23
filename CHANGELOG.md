@@ -27,3 +27,31 @@ Here is a comprehensive breakdown of the code changes applied locally since the 
 ## 6. Empty-State Query Safety (`src/routes/submissions.ts`, `assignments.ts`, `classes.ts`)
 - **The Issue**: Supabase's PostgREST API throws a 500 Server Error if an empty array `[]` is passed into an `.in()` filter clause.
 - **The Fix**: Added defensive early-return guards. If the mapped `classIds` or `assignmentIds` arrays are empty (`length === 0`), the routes immediately short-circuit the database call and return a clean `200 OK` with an empty array. This prevents dashboard crashes for new users who have zero classes or assignments.
+
+## 7. Soft Delete — Archive & Edit for Classes and Assignments
+
+### Schema (`supabase/migrations/004_add_is_archived_to_classes_and_assignments.sql`)
+- Added `is_archived BOOLEAN NOT NULL DEFAULT false` to both `classes` and `assignments`. All existing rows default to active. No data is permanently deleted.
+
+### Database Types (`src/types/database.ts`)
+- Added `is_archived: boolean` to the `Class` and `Assignment` interfaces.
+- Added new `UpdateClassBody` and `UpdateAssignmentBody` request body interfaces for the new PATCH endpoints.
+
+### Class Routes (`src/routes/classes.ts`)
+- **GET `/classes`**: Both the teacher branch and the student branch now filter with `.eq('is_archived', false)` so archived classes never appear in active dashboards.
+- **PATCH `/classes/:id`** (new): Teacher-only. Accepts `name`, `description`, and/or `is_archived`. Verifies teacher ownership via a pre-update lookup before applying changes. Returns contextual messages: `"Class archived successfully."`, `"Class restored successfully."`, or `"Class updated successfully."`.
+
+### Assignment Routes (`src/routes/assignments.ts`)
+- **GET `/assignments`**: Both the teacher branch and the student branch now filter with `.eq('is_archived', false)`.
+- **PATCH `/assignments/:id`** (new): Teacher-only. Accepts `title`, `description`, `due_date`, `word_limit`, `ai_policy`, and/or `is_archived`. Ownership is verified before any update. `ai_policy` is normalised to lowercase, consistent with the existing POST behaviour.
+
+### Submission Routes (`src/routes/submissions.ts`)
+- **GET `/submissions` (teacher branch)**: Now filters the upstream assignment query with `.eq('is_archived', false)`, so submissions belonging to archived assignments no longer surface in the teacher's view.
+- **POST `/submissions`**: Added a guard after the duplicate-submission check that rejects new submissions against an archived assignment with a `409` error (`"This assignment has been archived and is no longer accepting submissions."`).
+
+### API Root (`src/index.ts`)
+- Updated the self-documenting endpoint directory to include `PATCH /classes/:id`, `PATCH /assignments/:id`, and the previously-undocumented `PATCH /submissions/:id/grade`.
+
+### Bruno Collection
+- Added `Classes/UpdateClass.bru`, `Classes/ArchiveClass.bru`, `Assignments/UpdateAssignment.bru`, and `Assignments/ArchiveAssignment.bru`.
+

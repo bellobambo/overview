@@ -27,6 +27,7 @@ router.get('/', async (req: Request, res: Response) => {
         .from('assignments')
         .select('id')
         .eq('teacher_id', req.user?.id as string)
+        .eq('is_archived', false)
         .returns<Pick<Assignment, 'id'>[]>();
 
     if (assignmentError) {
@@ -78,6 +79,21 @@ router.post('/', requireStudent, async (req: Request, res: Response) => {
 
     if (existingSub) {
         return sendSuccess(res, 200, 'Submission already exists.', { submission: existingSub });
+    }
+
+    // Prevent submitting to an archived assignment.
+    const { data: assignmentData, error: assignmentCheckError } = await supabase
+        .from('assignments')
+        .select('is_archived')
+        .eq('id', assignment_id)
+        .single<Pick<Assignment, 'is_archived'>>();
+
+    if (assignmentCheckError || !assignmentData) {
+        return sendError(res, 404, 'Assignment not found.', undefined, assignmentCheckError?.message);
+    }
+
+    if (assignmentData.is_archived) {
+        return sendError(res, 409, 'This assignment has been archived and is no longer accepting submissions.');
     }
 
     const { data, error } = await supabase

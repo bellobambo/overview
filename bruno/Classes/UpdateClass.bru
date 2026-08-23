@@ -1,0 +1,39 @@
+meta {
+  name: Update Class
+  type: http
+  seq: 5
+}
+
+patch {
+  url: {{baseUrl}}/classes/:id
+  body: json
+  auth: bearer
+}
+
+params:path {
+  id: class-uuid-here
+}
+
+auth:bearer {
+  token: {{authToken}}
+}
+
+body:json {
+  "name": "Updated Class Name",
+  "description": "Updated description"
+}
+
+docs {
+  Lets a teacher edit or archive one of their own classes.
+  Only the owning teacher can update a class — ownership is verified server-side.
+
+  Updatable fields (all optional, but at least one must be provided):
+    name        - New class name
+    description - New class description
+    is_archived - Set to true to archive, false to restore
+
+  Possible error responses:
+    400 - No updatable fields provided
+    403 - Authenticated user is not a teacher
+    404 - Class not found or not owned by this teacher
+}

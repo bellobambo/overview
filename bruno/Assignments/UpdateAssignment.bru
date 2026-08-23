@@ -1,0 +1,46 @@
+meta {
+  name: Update Assignment
+  type: http
+  seq: 7
+}
+
+patch {
+  url: {{baseUrl}}/assignments/:id
+  body: json
+  auth: bearer
+}
+
+params:path {
+  id: assignment-uuid-here
+}
+
+auth:bearer {
+  token: {{authToken}}
+}
+
+body:json {
+  "title": "Updated Essay Title",
+  "description": "Updated instructions",
+  "due_date": "2026-09-30",
+  "word_limit": 1500,
+  // Valid options for ai_policy: "allowed" | "restricted" | "forbidden"
+  "ai_policy": "restricted"
+}
+
+docs {
+  Lets a teacher edit one of their own assignments.
+  Only the owning teacher can update an assignment — ownership is verified server-side.
+
+  Updatable fields (all optional, but at least one must be provided):
+    title       - New assignment title
+    description - Updated instructions or prompt
+    due_date    - New due date (ISO 8601 string)
+    word_limit  - Updated word limit (number or null to remove)
+    ai_policy   - "allowed" | "restricted" | "forbidden" (or null to remove)
+    is_archived - Set to true to archive, false to restore
+
+  Possible error responses:
+    400 - No updatable fields provided
+    403 - Authenticated user is not a teacher
+    404 - Assignment not found or not owned by this teacher
+}

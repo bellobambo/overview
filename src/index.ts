@@ -22,9 +22,9 @@ app.get('/', (_req: Request, res: Response) => {
         endpoints: {
             auth: 'POST /auth/signup, POST /auth/signin, POST /auth/signout, POST /auth/refresh',
             profile: 'GET /profile',
-            classes: 'GET /classes, POST /classes',
-            assignments: 'GET /assignments, POST /assignments',
-            submissions: 'GET /submissions, POST /submissions',
+            classes: 'GET /classes, POST /classes, PATCH /classes/:id',
+            assignments: 'GET /assignments, POST /assignments, PATCH /assignments/:id',
+            submissions: 'GET /submissions, POST /submissions, PATCH /submissions/:id, PATCH /submissions/:id/grade',
             keystrokes: 'POST /keystrokes, GET /keystrokes/:submissionId'
         }
     });

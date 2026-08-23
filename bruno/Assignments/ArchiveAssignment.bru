@@ -1,0 +1,33 @@
+meta {
+  name: Archive Assignment
+  type: http
+  seq: 8
+}
+
+patch {
+  url: {{baseUrl}}/assignments/:id
+  body: json
+  auth: bearer
+}
+
+params:path {
+  id: assignment-uuid-here
+}
+
+auth:bearer {
+  token: {{authToken}}
+}
+
+body:json {
+  "is_archived": true
+}
+
+docs {
+  Archives an assignment so it no longer appears in active dashboards.
+  Data and student submissions are preserved — set is_archived to false to restore it.
+  Only the owning teacher can archive an assignment.
+
+  Possible error responses:
+    403 - Authenticated user is not a teacher
+    404 - Assignment not found or not owned by this teacher
+}
