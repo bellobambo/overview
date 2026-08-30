@@ -4,6 +4,7 @@ import { sendError, sendSuccess, validateRequiredFields } from '../utils/apiResp
 import type { KeystrokeLog, CreateKeystrokeLogBody } from '../types/database';
 
 import { requireStudent } from '../middleware/auth';
+import { fetchAndFlattenKeystrokes } from '../utils/keystrokeHelpers';
 
 const router = express.Router();
 
@@ -84,38 +85,12 @@ router.get('/:submissionId', async (req: Request, res: Response) => {
         }
     }
 
-    const { data, error } = await supabase
-        .from('keystroke_logs')
-        .select('*')
-        .eq('submission_id', submissionId)
-        .order('created_at', { ascending: true })
-        .returns<KeystrokeLog[]>();
-
-    if (error) {
-        return sendError(res, 500, 'Unable to load keystroke logs for this submission.', undefined, error.message);
+    let uniqueEvents = [];
+    try {
+        uniqueEvents = await fetchAndFlattenKeystrokes(submissionId);
+    } catch (e: any) {
+        return sendError(res, 500, 'Unable to load keystroke logs for this submission.', undefined, e.message);
     }
-
-    // Flatten and sort the events by chunk_seq then timestamp
-    const flattenedEvents = data.flatMap(log => log.events || []);
-    
-    // Simple deduplication based on exact same timestamp and chunk_seq (idempotency)
-    const uniqueEventsMap = new Map();
-    for (const ev of flattenedEvents) {
-        const key = `${(ev as any).chunk_seq || 0}_${(ev as any).timestamp}`;
-        // If a duplicate payload was sent, they will have same chunk_seq and timestamp
-        // we can safely overwrite it.
-        if (!uniqueEventsMap.has(key) || (ev as any).perfDelta) {
-           uniqueEventsMap.set(key, ev);
-        }
-    }
-    
-    const uniqueEvents = Array.from(uniqueEventsMap.values());
-    uniqueEvents.sort((a, b) => {
-        const seqA = (a.chunk_seq as number) || 0;
-        const seqB = (b.chunk_seq as number) || 0;
-        if (seqA !== seqB) return seqA - seqB;
-        return ((a.timestamp as number) || 0) - ((b.timestamp as number) || 0);
-    });
 
     return sendSuccess(res, 200, 'Keystroke logs retrieved successfully.', { logs: uniqueEvents });
 });

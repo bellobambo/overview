@@ -19,6 +19,7 @@ router.get('/', async (req, res) => {
             .from('assignments')
             .select('*')
             .eq('teacher_id', userId)
+            .eq('is_archived', false)
             .returns();
         if (error) {
             return (0, apiResponse_1.sendError)(res, 500, 'Unable to load assignments right now. Please try again later.', undefined, error.message);
@@ -34,10 +35,14 @@ router.get('/', async (req, res) => {
         return (0, apiResponse_1.sendError)(res, 500, 'Unable to load your class assignments right now.', undefined, memberError.message);
     }
     const classIds = (memberData ?? []).map((item) => item.class_id);
+    if (classIds.length === 0) {
+        return (0, apiResponse_1.sendSuccess)(res, 200, 'Assignments retrieved successfully.', { assignments: [] });
+    }
     const { data, error } = await supabaseClient_1.default
         .from('assignments')
         .select('*')
         .in('class_id', classIds)
+        .eq('is_archived', false)
         .returns();
     if (error) {
         return (0, apiResponse_1.sendError)(res, 500, 'Unable to load assignments right now. Please try again later.', undefined, error.message);
@@ -60,5 +65,64 @@ router.post('/', auth_1.requireTeacher, async (req, res) => {
         return (0, apiResponse_1.sendError)(res, 500, 'The assignment could not be created. Please try again.', undefined, error.message);
     }
     return (0, apiResponse_1.sendSuccess)(res, 201, 'Assignment created successfully.', { assignment: data });
+});
+// PATCH /assignments/:id — lets a teacher edit or archive one of their own assignments.
+// Accepts: title, description, due_date, word_limit, ai_policy, is_archived.
+// Verifies teacher ownership before applying updates.
+router.patch('/:id', auth_1.requireTeacher, async (req, res) => {
+    const { id } = req.params;
+    const teacherId = req.user?.id;
+    const { title, description, due_date, word_limit, ai_policy, is_archived } = req.body;
+    // Ensure at least one updatable field was provided.
+    if (title === undefined &&
+        description === undefined &&
+        due_date === undefined &&
+        word_limit === undefined &&
+        ai_policy === undefined &&
+        is_archived === undefined) {
+        return (0, apiResponse_1.sendError)(res, 400, 'Please provide at least one field to update.', undefined, 'Validation failed');
+    }
+    // Verify the teacher owns this assignment before allowing any changes.
+    const { data: existing, error: fetchError } = await supabaseClient_1.default
+        .from('assignments')
+        .select('id')
+        .eq('id', id)
+        .eq('teacher_id', teacherId)
+        .maybeSingle();
+    if (fetchError) {
+        return (0, apiResponse_1.sendError)(res, 500, 'Unable to verify assignment ownership right now. Please try again.', undefined, fetchError.message);
+    }
+    if (!existing) {
+        return (0, apiResponse_1.sendError)(res, 404, 'Assignment not found or you do not have permission to update it.');
+    }
+    // Build the update payload from only the fields that were provided.
+    const updates = {};
+    if (title !== undefined)
+        updates.title = title;
+    if (description !== undefined)
+        updates.description = description;
+    if (due_date !== undefined)
+        updates.due_date = due_date;
+    if (word_limit !== undefined)
+        updates.word_limit = word_limit;
+    if (ai_policy !== undefined)
+        updates.ai_policy = typeof ai_policy === 'string' ? ai_policy.toLowerCase() : ai_policy;
+    if (is_archived !== undefined)
+        updates.is_archived = is_archived;
+    const { data, error } = await supabaseClient_1.default
+        .from('assignments')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+    if (error) {
+        return (0, apiResponse_1.sendError)(res, 500, 'Unable to update the assignment right now. Please try again.', undefined, error.message);
+    }
+    const message = is_archived === true
+        ? 'Assignment archived successfully.'
+        : is_archived === false
+            ? 'Assignment restored successfully.'
+            : 'Assignment updated successfully.';
+    return (0, apiResponse_1.sendSuccess)(res, 200, message, { assignment: data });
 });
 exports.default = router;

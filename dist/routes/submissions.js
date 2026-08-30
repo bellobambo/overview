@@ -25,11 +25,15 @@ router.get('/', async (req, res) => {
         .from('assignments')
         .select('id')
         .eq('teacher_id', req.user?.id)
+        .eq('is_archived', false)
         .returns();
     if (assignmentError) {
         return (0, apiResponse_1.sendError)(res, 500, 'Unable to load submissions for your assignments right now.', undefined, assignmentError.message);
     }
     const assignmentIds = (assignmentData ?? []).map((item) => item.id);
+    if (assignmentIds.length === 0) {
+        return (0, apiResponse_1.sendSuccess)(res, 200, 'Submissions retrieved successfully.', { submissions: [] });
+    }
     const { data, error } = await supabaseClient_1.default
         .from('submissions')
         .select('*, profiles!student_id(full_name)')
@@ -61,6 +65,18 @@ router.post('/', auth_1.requireStudent, async (req, res) => {
         .maybeSingle();
     if (existingSub) {
         return (0, apiResponse_1.sendSuccess)(res, 200, 'Submission already exists.', { submission: existingSub });
+    }
+    // Prevent submitting to an archived assignment.
+    const { data: assignmentData, error: assignmentCheckError } = await supabaseClient_1.default
+        .from('assignments')
+        .select('is_archived')
+        .eq('id', assignment_id)
+        .single();
+    if (assignmentCheckError || !assignmentData) {
+        return (0, apiResponse_1.sendError)(res, 404, 'Assignment not found.', undefined, assignmentCheckError?.message);
+    }
+    if (assignmentData.is_archived) {
+        return (0, apiResponse_1.sendError)(res, 409, 'This assignment has been archived and is no longer accepting submissions.');
     }
     const { data, error } = await supabaseClient_1.default
         .from('submissions')

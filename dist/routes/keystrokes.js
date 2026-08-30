@@ -7,6 +7,7 @@ const express_1 = __importDefault(require("express"));
 const supabaseClient_1 = __importDefault(require("../supabaseClient"));
 const apiResponse_1 = require("../utils/apiResponse");
 const auth_1 = require("../middleware/auth");
+const keystrokeHelpers_1 = require("../utils/keystrokeHelpers");
 const router = express_1.default.Router();
 router.post('/', auth_1.requireStudent, async (req, res) => {
     const missingFields = (0, apiResponse_1.validateRequiredFields)(req.body, ['submission_id', 'events']);
@@ -71,35 +72,13 @@ router.get('/:submissionId', async (req, res) => {
             return (0, apiResponse_1.sendError)(res, 403, 'Access denied. You can only view keystrokes for your own submissions.');
         }
     }
-    const { data, error } = await supabaseClient_1.default
-        .from('keystroke_logs')
-        .select('*')
-        .eq('submission_id', submissionId)
-        .order('created_at', { ascending: true })
-        .returns();
-    if (error) {
-        return (0, apiResponse_1.sendError)(res, 500, 'Unable to load keystroke logs for this submission.', undefined, error.message);
+    let uniqueEvents = [];
+    try {
+        uniqueEvents = await (0, keystrokeHelpers_1.fetchAndFlattenKeystrokes)(submissionId);
     }
-    // Flatten and sort the events by chunk_seq then timestamp
-    const flattenedEvents = data.flatMap(log => log.events || []);
-    // Simple deduplication based on exact same timestamp and chunk_seq (idempotency)
-    const uniqueEventsMap = new Map();
-    for (const ev of flattenedEvents) {
-        const key = `${ev.chunk_seq || 0}_${ev.timestamp}`;
-        // If a duplicate payload was sent, they will have same chunk_seq and timestamp
-        // we can safely overwrite it.
-        if (!uniqueEventsMap.has(key) || ev.perfDelta) {
-            uniqueEventsMap.set(key, ev);
-        }
+    catch (e) {
+        return (0, apiResponse_1.sendError)(res, 500, 'Unable to load keystroke logs for this submission.', undefined, e.message);
     }
-    const uniqueEvents = Array.from(uniqueEventsMap.values());
-    uniqueEvents.sort((a, b) => {
-        const seqA = a.chunk_seq || 0;
-        const seqB = b.chunk_seq || 0;
-        if (seqA !== seqB)
-            return seqA - seqB;
-        return (a.timestamp || 0) - (b.timestamp || 0);
-    });
     return (0, apiResponse_1.sendSuccess)(res, 200, 'Keystroke logs retrieved successfully.', { logs: uniqueEvents });
 });
 exports.default = router;
