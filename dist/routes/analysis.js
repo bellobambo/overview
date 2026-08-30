@@ -180,7 +180,6 @@ router.post('/:submissionId', async (req, res) => {
             const apiKey = process.env.GEMINI_API_KEY;
             if (apiKey) {
                 const genAI = new generative_ai_1.GoogleGenerativeAI(apiKey);
-                const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", generationConfig: { responseMimeType: "application/json" } });
                 // Construct LLM payload from bursts that produced significant text
                 const significantBursts = bursts.filter(b => b.charCount > 30);
                 const payload = {
@@ -219,7 +218,21 @@ Evaluate each segment and return this EXACT JSON structure:
 Payload:
 ${JSON.stringify(payload, null, 2)}`;
                 try {
-                    const aiResponse = await model.generateContent(prompt);
+                    let aiResponse;
+                    try {
+                        const model = genAI.getGenerativeModel({ model: "gemini-3.5-flash-lite", generationConfig: { responseMimeType: "application/json" } });
+                        aiResponse = await model.generateContent(prompt);
+                    }
+                    catch (e) {
+                        if (e.status === 429 || (e.message && e.message.includes('429'))) {
+                            console.warn("429 Too Many Requests on gemini-3.5-flash-lite, falling back to gemini-3.1-flash-lite");
+                            const fallbackModel = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite", generationConfig: { responseMimeType: "application/json" } });
+                            aiResponse = await fallbackModel.generateContent(prompt);
+                        }
+                        else {
+                            throw e;
+                        }
+                    }
                     const aiJson = JSON.parse(aiResponse.response.text());
                     if (aiJson && Array.isArray(aiJson.segment_analyses)) {
                         // Map LLM response back to doc coordinates
