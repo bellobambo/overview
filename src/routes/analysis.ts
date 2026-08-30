@@ -97,7 +97,7 @@ router.post('/:submissionId', async (req: Request, res: Response) => {
                         startIndex: i,
                         textProduced: '',
                         docPosFrom: step.from || 0,
-                        docPosTo: step.to || 0,
+                        docPosTo: (step.from || 0) + charsAdded,
                         durationMs: 0,
                         charCount: 0,
                         deletionCount: 0,
@@ -111,7 +111,8 @@ router.post('/:submissionId', async (req: Request, res: Response) => {
                 currentBurst.textProduced += textProduced;
                 currentBurst.charCount! += charsAdded;
                 currentBurst.deletionCount! += charsDeleted;
-                currentBurst.docPosTo = Math.max(currentBurst.docPosTo || 0, step.to || 0);
+                const stepEnd = (step.from || 0) + charsAdded;
+                currentBurst.docPosTo = Math.max(currentBurst.docPosTo || 0, stepEnd);
                 if (isPaste) currentBurst.isLargePaste = true;
                 currentBurst.durationMs = ts - (events[currentBurst.startIndex!].timestamp || ts);
                 
@@ -249,7 +250,9 @@ ${JSON.stringify(payload, null, 2)}`;
                         }
                     }
 
-                    const aiJson = JSON.parse(aiResponse.response.text());
+                    const text = aiResponse.response.text();
+                    const cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
+                    const aiJson = JSON.parse(cleanText);
                     
                     if (aiJson && Array.isArray(aiJson.segment_analyses)) {
                         // Map LLM response back to doc coordinates
