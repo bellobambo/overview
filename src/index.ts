@@ -11,6 +11,7 @@ import assignmentsRouter from './routes/assignments';
 import submissionsRouter from './routes/submissions';
 import keystrokesRouter from './routes/keystrokes';
 import analysisRouter from './routes/analysis';
+import settingsRouter from './routes/settings';
 
 const app = express();
 app.use(cors());
@@ -26,7 +27,8 @@ app.get('/', (_req: Request, res: Response) => {
             classes: 'GET /classes, POST /classes, PATCH /classes/:id',
             assignments: 'GET /assignments, POST /assignments, PATCH /assignments/:id',
             submissions: 'GET /submissions, POST /submissions, PATCH /submissions/:id, PATCH /submissions/:id/grade',
-            keystrokes: 'POST /keystrokes, GET /keystrokes/:submissionId'
+            keystrokes: 'POST /keystrokes, GET /keystrokes/:submissionId',
+            settings: 'GET /settings, PUT /settings'
         }
     });
 });
@@ -38,6 +40,7 @@ app.use('/assignments', authenticate, assignmentsRouter);
 app.use('/submissions', authenticate, submissionsRouter);
 app.use('/keystrokes', authenticate, keystrokesRouter);
 app.use('/analysis', authenticate, analysisRouter);
+app.use('/settings', authenticate, settingsRouter);
 
 app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     if (err instanceof SyntaxError && 'status' in err && (err as any).status === 400 && 'body' in err) {
