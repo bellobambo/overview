@@ -3,6 +3,7 @@ import supabase from '../supabaseClient';
 import { sendError } from '../utils/apiResponse';
 
 export async function authenticate(req: Request, res: Response, next: NextFunction) {
+    try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
         return sendError(res, 401, 'Authentication required. Please provide a valid bearer token.', undefined, 'Authorization header missing or malformed');
@@ -18,19 +19,29 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
         return sendError(res, 401, 'Authentication failed. Your session may have expired.', undefined, 'Invalid or expired access token');
     }
 
-    const { data: profileData } = await supabase
+    const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('role')
         .eq('id', data.user.id)
         .single();
 
+    if (profileError || !profileData?.role) {
+        return sendError(res, 403, 'Your account profile is incomplete. Please contact support.', undefined, profileError?.message);
+    }
+
     req.user = {
         id: data.user.id,
         email: data.user.email ?? undefined,
-        user_metadata: data.user.user_metadata as Express.UserMetadata | undefined,
-        role: profileData?.role ?? undefined
+        user_metadata: {
+            ...(data.user.user_metadata as Express.UserMetadata | undefined),
+            role: profileData.role
+        },
+        role: profileData.role
     };
     next();
+    } catch (error) {
+        next(error);
+    }
 }
 
 export function requireTeacher(req: Request, res: Response, next: NextFunction) {

@@ -7,14 +7,35 @@ const express_1 = __importDefault(require("express"));
 const supabaseClient_1 = __importDefault(require("../supabaseClient"));
 const auth_1 = require("../middleware/auth");
 const apiResponse_1 = require("../utils/apiResponse");
+const crypto_1 = require("crypto");
+const rateLimit_1 = require("../middleware/rateLimit");
 const router = express_1.default.Router();
+router.get('/members', auth_1.requireTeacher, async (req, res) => {
+    const { data: ownedClasses, error: classError } = await supabaseClient_1.default
+        .from('classes')
+        .select('id')
+        .eq('teacher_id', req.user?.id)
+        .eq('is_archived', false);
+    if (classError)
+        return (0, apiResponse_1.sendError)(res, 500, 'Unable to load class rosters.', undefined, classError.message);
+    const classIds = (ownedClasses ?? []).map(item => item.id);
+    if (classIds.length === 0)
+        return (0, apiResponse_1.sendSuccess)(res, 200, 'Class rosters retrieved.', { members: [] });
+    const { data, error } = await supabaseClient_1.default
+        .from('class_members')
+        .select('user_id, class_id, joined_at, profiles!user_id(id, full_name)')
+        .in('class_id', classIds);
+    if (error)
+        return (0, apiResponse_1.sendError)(res, 500, 'Unable to load class rosters.', undefined, error.message);
+    return (0, apiResponse_1.sendSuccess)(res, 200, 'Class rosters retrieved.', { members: data ?? [] });
+});
 /** Generates a random 8-character uppercase alphanumeric join code. */
 function generateJoinCode() {
-    return Math.random().toString(36).substring(2, 6).toUpperCase() +
-        Math.random().toString(36).substring(2, 6).toUpperCase();
+    const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    return Array.from({ length: 8 }, () => alphabet[(0, crypto_1.randomInt)(0, alphabet.length)]).join('');
 }
 router.get('/', async (req, res) => {
-    const role = req.user?.user_metadata?.role;
+    const role = req.user?.role;
     const userId = req.user?.id;
     if (role === 'teacher') {
         const { data, error } = await supabaseClient_1.default
@@ -58,6 +79,9 @@ router.post('/', auth_1.requireTeacher, async (req, res) => {
         return (0, apiResponse_1.sendError)(res, 400, 'Please provide the required class details.', { missingFields }, 'Validation failed');
     }
     const { name, description } = req.body;
+    if (typeof name !== 'string' || !name.trim() || name.length > 200 || (description != null && (typeof description !== 'string' || description.length > 10_000))) {
+        return (0, apiResponse_1.sendError)(res, 400, 'Class name or description is invalid.');
+    }
     const join_code = generateJoinCode();
     const { data, error } = await supabaseClient_1.default
         .from('classes')
@@ -71,21 +95,27 @@ router.post('/', auth_1.requireTeacher, async (req, res) => {
 });
 // B4: POST /classes/enroll — lets a student join a class using a join_code.
 // Looks up the class, checks for duplicate membership, then inserts into class_members.
-router.post('/enroll', auth_1.requireStudent, async (req, res) => {
+router.post('/enroll', auth_1.requireStudent, (0, rateLimit_1.rateLimit)({ name: 'enroll', windowMs: 15 * 60_000, max: 10 }), async (req, res) => {
     const missingFields = (0, apiResponse_1.validateRequiredFields)(req.body, ['join_code']);
     if (missingFields.length > 0) {
         return (0, apiResponse_1.sendError)(res, 400, 'Please provide a join code to enroll in a class.', { missingFields }, 'Validation failed');
     }
     const { join_code } = req.body;
+    if (typeof join_code !== 'string' || !/^[A-Z0-9]{8}$/i.test(join_code.trim())) {
+        return (0, apiResponse_1.sendError)(res, 400, 'Please enter a valid eight-character join code.');
+    }
     const studentId = req.user?.id;
     // Look up the class by its join_code.
     const { data: classData, error: classError } = await supabaseClient_1.default
         .from('classes')
-        .select('id, name')
-        .eq('join_code', join_code.toUpperCase())
+        .select('id, name, is_archived')
+        .eq('join_code', join_code.trim().toUpperCase())
         .single();
     if (classError || !classData) {
         return (0, apiResponse_1.sendError)(res, 404, 'No class found with that join code. Please check and try again.');
+    }
+    if (classData.is_archived) {
+        return (0, apiResponse_1.sendError)(res, 409, 'This class is archived and is not accepting new students.');
     }
     // Prevent duplicate enrollment.
     const { data: existing } = await supabaseClient_1.default
@@ -130,10 +160,19 @@ router.patch('/:id', auth_1.requireTeacher, async (req, res) => {
     if (!existing) {
         return (0, apiResponse_1.sendError)(res, 404, 'Class not found or you do not have permission to update it.');
     }
+    if (name !== undefined && (typeof name !== 'string' || !name.trim() || name.length > 200)) {
+        return (0, apiResponse_1.sendError)(res, 400, 'Class name is invalid.');
+    }
+    if (description !== undefined && description !== null && (typeof description !== 'string' || description.length > 10_000)) {
+        return (0, apiResponse_1.sendError)(res, 400, 'Class description is invalid.');
+    }
+    if (is_archived !== undefined && typeof is_archived !== 'boolean') {
+        return (0, apiResponse_1.sendError)(res, 400, 'Archived state must be true or false.');
+    }
     // Build the update payload from only the fields that were provided.
     const updates = {};
     if (name !== undefined)
-        updates.name = name;
+        updates.name = name.trim();
     if (description !== undefined)
         updates.description = description;
     if (is_archived !== undefined)

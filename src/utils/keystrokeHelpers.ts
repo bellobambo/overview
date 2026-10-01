@@ -6,6 +6,7 @@ export async function fetchAndFlattenKeystrokes(submissionId: string) {
         .from('keystroke_logs')
         .select('*')
         .eq('submission_id', submissionId)
+        .order('chunk_seq', { ascending: true, nullsFirst: false })
         .order('created_at', { ascending: true })
         .returns<KeystrokeLog[]>();
 
@@ -15,23 +16,24 @@ export async function fetchAndFlattenKeystrokes(submissionId: string) {
 
     if (!data) return [];
 
-    const flattenedEvents = data.flatMap(log => log.events || []);
-    
-    const uniqueEventsMap = new Map();
-    for (const ev of flattenedEvents) {
-        const key = `${(ev as any).chunk_seq || 0}_${(ev as any).timestamp}`;
-        if (!uniqueEventsMap.has(key) || (ev as any).perfDelta) {
-           uniqueEventsMap.set(key, ev);
-        }
-    }
-    
-    const uniqueEvents = Array.from(uniqueEventsMap.values());
-    uniqueEvents.sort((a, b) => {
+    const flattenedEvents: Record<string, any>[] = data.flatMap((log, logIndex) =>
+        (log.events || []).map((event, eventIndex) => ({
+            ...event,
+            chunk_seq: (event as any).chunk_seq ?? log.chunk_seq ?? logIndex,
+            event_index: (event as any).event_index ?? eventIndex,
+            server_received_at: (event as any).server_received_at ?? log.server_received_at ?? log.created_at
+        }))
+    );
+
+    flattenedEvents.sort((a, b) => {
         const seqA = (a.chunk_seq as number) || 0;
         const seqB = (b.chunk_seq as number) || 0;
         if (seqA !== seqB) return seqA - seqB;
+        const indexA = (a.event_index as number) || 0;
+        const indexB = (b.event_index as number) || 0;
+        if (indexA !== indexB) return indexA - indexB;
         return ((a.timestamp as number) || 0) - ((b.timestamp as number) || 0);
     });
 
-    return uniqueEvents;
+    return flattenedEvents;
 }

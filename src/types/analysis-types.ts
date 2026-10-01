@@ -52,6 +52,14 @@ export interface AnalysisResult {
   aiLikelihoodSummary: string;   // Human-readable summary of how the score was determined
   hasDeepAnalysis: boolean;      // True if LLM segment analysis was completed
   hasDocumentAnalysis: boolean;  // True if full-document linguistic analysis was completed
+  assessmentStatus: 'complete' | 'behavioral_only' | 'insufficient_data';
+  confidence: 'low' | 'medium' | 'high';
+  limitations: string[];
+  policyContext?: {
+    aiPolicy: 'allowed' | 'restricted' | 'forbidden' | null;
+    reviewRecommended: boolean;
+    threshold: number;
+  };
   scoringBreakdown: {
     behavioralRisk: number;      // 0-100: Typing dynamics risk (pastes, tabs, speed, pauses)
     segmentTextScore: number;    // 0-100: Per-burst LLM analysis cross-referenced with telemetry
@@ -72,8 +80,12 @@ export interface AnalysisResult {
 
 export interface BatchAnalysisItem {
   submissionId: string;
-  aiLikelihood: number;
-  aiLikelihoodVerdict: AiRiskLevel;
+  aiLikelihood: number | null;
+  aiLikelihoodVerdict: AiRiskLevel | 'not_assessed';
+  assessmentStatus: 'complete' | 'behavioral_only' | 'insufficient_data' | 'failed';
+  confidence: 'low' | 'medium' | 'high';
+  reviewRecommended: boolean;
+  threshold: number;
   hasDeepAnalysis: boolean;
   totalPasteEvents: number;
   totalTabSwitches: number;

@@ -13,6 +13,13 @@ export interface StepEvent {
   perfDelta?: number;
 }
 
+export interface WindowEvent {
+  type: 'window';
+  action: 'blur' | 'focus';
+  timestamp: number;
+  perfDelta?: number;
+}
+
 export type KeystrokeEvent = 
   | {
       type: 'insert' | 'delete' | 'paste' | 'mark';
@@ -24,7 +31,8 @@ export type KeystrokeEvent =
       action?: 'add' | 'remove'; // Mark action
       timestamp: number;       // Unix epoch milliseconds
     }
-  | StepEvent;
+  | StepEvent
+  | WindowEvent;
 
 export interface Profile {
     id: string;
@@ -75,6 +83,15 @@ export interface Submission {
     final_text: string | null;
     final_html: string | null;
     status: SubmissionStatus;
+    submission_version?: number;
+    submitted_at?: string | null;
+    is_late?: boolean;
+    teacher_feedback?: string | null;
+    ai_score?: number | null;
+    analysis_data?: unknown;
+    analysis_revision?: number | null;
+    analysis_model_version?: string | null;
+    analysis_generated_at?: string | null;
     created_at: string;
     updated_at: string;
     profiles?: { full_name: string | null };
@@ -84,6 +101,10 @@ export interface KeystrokeLog {
     id: string;
     submission_id: string;
     events: Record<string, unknown>[];
+    chunk_seq?: number | null;
+    client_batch_id?: string | null;
+    event_count?: number;
+    server_received_at?: string;
     created_at: string;
 }
 
@@ -121,6 +142,8 @@ export interface UpdateSubmissionBody {
 export interface CreateKeystrokeLogBody {
     submission_id: string;
     events: Record<string, unknown>[];
+    chunk_seq: number;
+    client_batch_id?: string;
 }
 
 export interface EnrollClassBody {

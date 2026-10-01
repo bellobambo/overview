@@ -3,6 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.app = void 0;
 require("dotenv/config");
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
@@ -17,11 +18,34 @@ const submissions_1 = __importDefault(require("./routes/submissions"));
 const keystrokes_1 = __importDefault(require("./routes/keystrokes"));
 const analysis_1 = __importDefault(require("./routes/analysis"));
 const settings_1 = __importDefault(require("./routes/settings"));
-const app = (0, express_1.default)();
-app.use((0, cors_1.default)());
-app.use(express_1.default.json({ limit: '5mb' }));
-app.use((0, morgan_1.default)('dev'));
-app.get('/', (_req, res) => {
+const rateLimit_1 = require("./middleware/rateLimit");
+exports.app = (0, express_1.default)();
+exports.app.disable('x-powered-by');
+const configuredOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:5173,https://overview-lime.vercel.app')
+    .split(',')
+    .map(origin => origin.trim())
+    .filter(Boolean);
+exports.app.use((0, cors_1.default)({
+    origin(origin, callback) {
+        if (!origin || configuredOrigins.includes(origin))
+            return callback(null, true);
+        return callback(new Error('Origin is not allowed by CORS'));
+    },
+    methods: ['GET', 'POST', 'PATCH', 'PUT', 'OPTIONS'],
+    allowedHeaders: ['Authorization', 'Content-Type']
+}));
+exports.app.use((_req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Referrer-Policy', 'no-referrer');
+    res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+    next();
+});
+exports.app.use(express_1.default.json({ limit: '5mb' }));
+exports.app.use((0, morgan_1.default)('dev'));
+const authLimiter = (0, rateLimit_1.rateLimit)({ name: 'auth', windowMs: 15 * 60_000, max: 30 });
+const analysisLimiter = (0, rateLimit_1.rateLimit)({ name: 'analysis', windowMs: 60_000, max: 20 });
+exports.app.get('/', (_req, res) => {
     return (0, apiResponse_1.sendSuccess)(res, 200, 'Overview backend API is running.', {
         project: 'Overview is a classroom and assignment management platform for teachers and students.',
         endpoints: {
@@ -35,15 +59,15 @@ app.get('/', (_req, res) => {
         }
     });
 });
-app.use('/auth', auth_2.default);
-app.use('/profile', auth_1.authenticate, profile_1.default);
-app.use('/classes', auth_1.authenticate, classes_1.default);
-app.use('/assignments', auth_1.authenticate, assignments_1.default);
-app.use('/submissions', auth_1.authenticate, submissions_1.default);
-app.use('/keystrokes', auth_1.authenticate, keystrokes_1.default);
-app.use('/analysis', auth_1.authenticate, analysis_1.default);
-app.use('/settings', auth_1.authenticate, settings_1.default);
-app.use((err, _req, res, _next) => {
+exports.app.use('/auth', authLimiter, auth_2.default);
+exports.app.use('/profile', auth_1.authenticate, profile_1.default);
+exports.app.use('/classes', auth_1.authenticate, classes_1.default);
+exports.app.use('/assignments', auth_1.authenticate, assignments_1.default);
+exports.app.use('/submissions', auth_1.authenticate, submissions_1.default);
+exports.app.use('/keystrokes', auth_1.authenticate, keystrokes_1.default);
+exports.app.use('/analysis', auth_1.authenticate, analysisLimiter, analysis_1.default);
+exports.app.use('/settings', auth_1.authenticate, settings_1.default);
+exports.app.use((err, _req, res, _next) => {
     if (err instanceof SyntaxError && 'status' in err && err.status === 400 && 'body' in err) {
         return (0, apiResponse_1.sendError)(res, 400, 'Invalid JSON format in request body. Please ensure your JSON is well-formed and does not contain comments.', undefined, 'SyntaxError');
     }
@@ -51,6 +75,8 @@ app.use((err, _req, res, _next) => {
     return (0, apiResponse_1.sendError)(res, 500, 'Internal server error', undefined, err.message);
 });
 const port = Number(process.env.PORT ?? 4000);
-app.listen(port, () => {
-    console.log(`Server listening on port ${port}`);
-});
+if (require.main === module) {
+    exports.app.listen(port, () => {
+        console.log(`Server listening on port ${port}`);
+    });
+}
