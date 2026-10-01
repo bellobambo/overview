@@ -65,6 +65,12 @@ export interface AnalysisResult {
     segmentTextScore: number;    // 0-100: Per-burst LLM analysis cross-referenced with telemetry
     documentTextScore: number;   // 0-100: Full-document linguistic AI detection (telemetry-independent)
   };
+  textForensics?: {
+    score: number;               // 0-100: Text-only AI concern (independent of behavioral data)
+    verdict: string;             // human | likely_human | mixed | likely_ai | ai_generated
+    evidence: string[];          // Specific linguistic observations with quoted examples
+    summary: string;             // 1-2 sentence assessment
+  };
   behavioralScore: BehavioralScore; // Granular sub-scores for transparency
   segments?: SegmentAnalysis[];  // Segment-by-segment evidence
   sessionStats: {

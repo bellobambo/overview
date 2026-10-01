@@ -2,12 +2,17 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const supabase_js_1 = require("@supabase/supabase-js");
 const supabaseUrl = process.env.SUPABASE_URL;
+// Guard against environment key misconfiguration:
+// If SUPABASE_SECRET_KEY is present and starts with 'sb_secret_', or if SUPABASE_SERVICE_ROLE_KEY
+// was inadvertently assigned the client publishable key (starts with 'sb_publishable_'), prefer the secret key.
 let serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 if (process.env.SUPABASE_SECRET_KEY?.startsWith('sb_secret_')) {
     serviceRoleKey = process.env.SUPABASE_SECRET_KEY;
-} else if (serviceRoleKey?.startsWith('sb_publishable_') && process.env.SUPABASE_SECRET_KEY) {
+}
+else if (serviceRoleKey?.startsWith('sb_publishable_') && process.env.SUPABASE_SECRET_KEY) {
     serviceRoleKey = process.env.SUPABASE_SECRET_KEY;
-} else if (!serviceRoleKey && process.env.SUPABASE_SECRET_KEY) {
+}
+else if (!serviceRoleKey && process.env.SUPABASE_SECRET_KEY) {
     serviceRoleKey = process.env.SUPABASE_SECRET_KEY;
 }
 if (!supabaseUrl || !serviceRoleKey) {

@@ -29,6 +29,7 @@ async function authenticate(req, res, next) {
             .maybeSingle();
         let userRole = profileData?.role;
         if (!userRole) {
+            // Self-heal: check if role is present in Supabase Auth user_metadata
             const metaRole = data.user.user_metadata?.role;
             const metaFullName = data.user.user_metadata?.full_name || null;
             if (metaRole && (metaRole === 'teacher' || metaRole === 'student')) {
@@ -36,16 +37,17 @@ async function authenticate(req, res, next) {
                 const { data: healedProfile, error: healError } = await supabaseClient_1.default
                     .from('profiles')
                     .upsert({
-                        id: data.user.id,
-                        role: metaRole,
-                        full_name: metaFullName,
-                        class_ids: []
-                    })
+                    id: data.user.id,
+                    role: metaRole,
+                    full_name: metaFullName,
+                    class_ids: []
+                })
                     .select('role')
                     .single();
                 if (!healError && healedProfile?.role) {
                     userRole = healedProfile.role;
-                } else if (healError) {
+                }
+                else if (healError) {
                     console.error('[Auth] Profile self-healing failed:', healError.message);
                 }
             }
