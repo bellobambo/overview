@@ -19,13 +19,39 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
         return sendError(res, 401, 'Authentication failed. Your session may have expired.', undefined, 'Invalid or expired access token');
     }
 
-    const { data: profileData, error: profileError } = await supabase
+    let { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('role')
         .eq('id', data.user.id)
-        .single();
+        .maybeSingle();
 
-    if (profileError || !profileData?.role) {
+    let userRole = profileData?.role;
+
+    if (!userRole) {
+        // Self-heal: check if role is present in Supabase Auth user_metadata
+        const metaRole = (data.user.user_metadata as any)?.role;
+        const metaFullName = (data.user.user_metadata as any)?.full_name || null;
+        if (metaRole && (metaRole === 'teacher' || metaRole === 'student')) {
+            console.log(`[Auth] Auto-healing missing profile for user ${data.user.id} with role ${metaRole}...`);
+            const { data: healedProfile, error: healError } = await supabase
+                .from('profiles')
+                .upsert({
+                    id: data.user.id,
+                    role: metaRole,
+                    full_name: metaFullName,
+                    class_ids: []
+                })
+                .select('role')
+                .single();
+            if (!healError && healedProfile?.role) {
+                userRole = healedProfile.role;
+            } else if (healError) {
+                console.error('[Auth] Profile self-healing failed:', healError.message);
+            }
+        }
+    }
+
+    if (!userRole) {
         return sendError(res, 403, 'Your account profile is incomplete. Please contact support.', undefined, profileError?.message);
     }
 
@@ -34,9 +60,9 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
         email: data.user.email ?? undefined,
         user_metadata: {
             ...(data.user.user_metadata as Express.UserMetadata | undefined),
-            role: profileData.role
+            role: userRole
         },
-        role: profileData.role
+        role: userRole
     };
     next();
     } catch (error) {

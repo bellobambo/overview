@@ -1,13 +1,24 @@
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+// Guard against environment key misconfiguration:
+// If SUPABASE_SECRET_KEY is present and starts with 'sb_secret_', or if SUPABASE_SERVICE_ROLE_KEY
+// was inadvertently assigned the client publishable key (starts with 'sb_publishable_'), prefer the secret key.
+let serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-if (!supabaseUrl || !supabaseServiceRoleKey) {
+if (process.env.SUPABASE_SECRET_KEY?.startsWith('sb_secret_')) {
+    serviceRoleKey = process.env.SUPABASE_SECRET_KEY;
+} else if (serviceRoleKey?.startsWith('sb_publishable_') && process.env.SUPABASE_SECRET_KEY) {
+    serviceRoleKey = process.env.SUPABASE_SECRET_KEY;
+} else if (!serviceRoleKey && process.env.SUPABASE_SECRET_KEY) {
+    serviceRoleKey = process.env.SUPABASE_SECRET_KEY;
+}
+
+if (!supabaseUrl || !serviceRoleKey) {
     throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in environment');
 }
 
-const supabase = createClient(supabaseUrl, supabaseServiceRoleKey, {
+const supabase = createClient(supabaseUrl, serviceRoleKey, {
     auth: { persistSession: false }
 });
 

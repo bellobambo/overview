@@ -22,12 +22,35 @@ async function authenticate(req, res, next) {
         if (error || !data?.user) {
             return (0, apiResponse_1.sendError)(res, 401, 'Authentication failed. Your session may have expired.', undefined, 'Invalid or expired access token');
         }
-        const { data: profileData, error: profileError } = await supabaseClient_1.default
+        let { data: profileData, error: profileError } = await supabaseClient_1.default
             .from('profiles')
             .select('role')
             .eq('id', data.user.id)
-            .single();
-        if (profileError || !profileData?.role) {
+            .maybeSingle();
+        let userRole = profileData?.role;
+        if (!userRole) {
+            const metaRole = data.user.user_metadata?.role;
+            const metaFullName = data.user.user_metadata?.full_name || null;
+            if (metaRole && (metaRole === 'teacher' || metaRole === 'student')) {
+                console.log(`[Auth] Auto-healing missing profile for user ${data.user.id} with role ${metaRole}...`);
+                const { data: healedProfile, error: healError } = await supabaseClient_1.default
+                    .from('profiles')
+                    .upsert({
+                        id: data.user.id,
+                        role: metaRole,
+                        full_name: metaFullName,
+                        class_ids: []
+                    })
+                    .select('role')
+                    .single();
+                if (!healError && healedProfile?.role) {
+                    userRole = healedProfile.role;
+                } else if (healError) {
+                    console.error('[Auth] Profile self-healing failed:', healError.message);
+                }
+            }
+        }
+        if (!userRole) {
             return (0, apiResponse_1.sendError)(res, 403, 'Your account profile is incomplete. Please contact support.', undefined, profileError?.message);
         }
         req.user = {
@@ -35,9 +58,9 @@ async function authenticate(req, res, next) {
             email: data.user.email ?? undefined,
             user_metadata: {
                 ...data.user.user_metadata,
-                role: profileData.role
+                role: userRole
             },
-            role: profileData.role
+            role: userRole
         };
         next();
     }
