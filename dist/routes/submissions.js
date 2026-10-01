@@ -115,7 +115,7 @@ router.patch('/:id', auth_1.requireStudent, async (req, res) => {
     if (missingFields.length > 0) {
         return (0, apiResponse_1.sendError)(res, 400, 'Please provide the required fields to save your submission.', { missingFields }, 'Validation failed');
     }
-    const { final_text, final_html, status } = req.body;
+    const { final_text, final_html, status, submission_version } = req.body;
     if (status !== undefined && !['draft', 'submitted'].includes(status)) {
         return (0, apiResponse_1.sendError)(res, 400, 'Invalid status value. Must be \'draft\' or \'submitted\'.', undefined, 'Validation failed');
     }
@@ -137,6 +137,15 @@ router.patch('/:id', auth_1.requireStudent, async (req, res) => {
     if (!(0, submissionPolicy_1.canStudentSave)(existing.status, status)) {
         return (0, apiResponse_1.sendError)(res, 409, 'This submission is locked. Your instructor must request a revision before it can be edited.');
     }
+    const currentDbVersion = existing.submission_version ?? 0;
+    if (submission_version !== undefined && submission_version !== null) {
+        if (!Number.isInteger(submission_version) || submission_version < 0) {
+            return (0, apiResponse_1.sendError)(res, 400, 'submission_version must be a non-negative integer.', undefined, 'Validation failed');
+        }
+        if (submission_version !== currentDbVersion) {
+            return (0, apiResponse_1.sendError)(res, 409, 'This submission was modified in another session or window. Please refresh to load the latest changes.', { server_version: currentDbVersion, client_version: submission_version });
+        }
+    }
     const { data: assignment, error: assignmentError } = await supabaseClient_1.default
         .from('assignments')
         .select('due_date, word_limit, is_archived, classes!inner(is_archived)')
@@ -153,7 +162,7 @@ router.patch('/:id', auth_1.requireStudent, async (req, res) => {
     if (status === 'submitted' && assignment.word_limit && wordCount > assignment.word_limit) {
         return (0, apiResponse_1.sendError)(res, 400, `This assignment has a ${assignment.word_limit}-word limit. Your document contains ${wordCount} words.`);
     }
-    const nextVersion = (existing.submission_version ?? 0) + 1;
+    const nextVersion = currentDbVersion + 1;
     const updatePayload = {
         final_text,
         final_html,
@@ -178,14 +187,14 @@ router.patch('/:id', auth_1.requireStudent, async (req, res) => {
         .update(updatePayload)
         .eq('id', submissionId)
         .eq('status', existing.status)
-        .eq('submission_version', existing.submission_version ?? 0)
+        .eq('submission_version', currentDbVersion)
         .select()
         .maybeSingle();
     if (error) {
         return (0, apiResponse_1.sendError)(res, 500, 'Your submission could not be saved. Please try again.', undefined, error.message);
     }
     if (!data) {
-        return (0, apiResponse_1.sendError)(res, 409, 'This submission changed while you were editing. Reload the latest version before saving.');
+        return (0, apiResponse_1.sendError)(res, 409, 'This submission changed while you were editing. Reload the latest version before saving.', { server_version: currentDbVersion });
     }
     return (0, apiResponse_1.sendSuccess)(res, 200, 'Submission saved successfully.', { submission: data });
 });

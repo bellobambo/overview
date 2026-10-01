@@ -137,6 +137,7 @@ export interface UpdateSubmissionBody {
     final_text: string;
     final_html: string;
     status?: SubmissionStatus;
+    submission_version?: number;
 }
 
 export interface CreateKeystrokeLogBody {

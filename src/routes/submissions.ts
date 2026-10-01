@@ -138,7 +138,7 @@ router.patch('/:id', requireStudent, async (req: Request, res: Response) => {
         return sendError(res, 400, 'Please provide the required fields to save your submission.', { missingFields }, 'Validation failed');
     }
 
-    const { final_text, final_html, status } = req.body as UpdateSubmissionBody;
+    const { final_text, final_html, status, submission_version } = req.body as UpdateSubmissionBody;
 
     if (status !== undefined && !['draft', 'submitted'].includes(status)) {
         return sendError(res, 400, 'Invalid status value. Must be \'draft\' or \'submitted\'.', undefined, 'Validation failed');
@@ -167,6 +167,21 @@ router.patch('/:id', requireStudent, async (req: Request, res: Response) => {
         return sendError(res, 409, 'This submission is locked. Your instructor must request a revision before it can be edited.');
     }
 
+    const currentDbVersion = existing.submission_version ?? 0;
+    if (submission_version !== undefined && submission_version !== null) {
+        if (!Number.isInteger(submission_version) || submission_version < 0) {
+            return sendError(res, 400, 'submission_version must be a non-negative integer.', undefined, 'Validation failed');
+        }
+        if (submission_version !== currentDbVersion) {
+            return sendError(
+                res,
+                409,
+                'This submission was modified in another session or window. Please refresh to load the latest changes.',
+                { server_version: currentDbVersion, client_version: submission_version }
+            );
+        }
+    }
+
     const { data: assignment, error: assignmentError } = await supabase
         .from('assignments')
         .select('due_date, word_limit, is_archived, classes!inner(is_archived)')
@@ -186,7 +201,7 @@ router.patch('/:id', requireStudent, async (req: Request, res: Response) => {
         return sendError(res, 400, `This assignment has a ${assignment.word_limit}-word limit. Your document contains ${wordCount} words.`);
     }
 
-    const nextVersion = (existing.submission_version ?? 0) + 1;
+    const nextVersion = currentDbVersion + 1;
     const updatePayload: Partial<Submission> & Record<string, unknown> = {
         final_text,
         final_html,
@@ -211,7 +226,7 @@ router.patch('/:id', requireStudent, async (req: Request, res: Response) => {
         .update(updatePayload)
         .eq('id', submissionId)
         .eq('status', existing.status)
-        .eq('submission_version', existing.submission_version ?? 0)
+        .eq('submission_version', currentDbVersion)
         .select()
         .maybeSingle<Submission>();
 
@@ -219,7 +234,7 @@ router.patch('/:id', requireStudent, async (req: Request, res: Response) => {
         return sendError(res, 500, 'Your submission could not be saved. Please try again.', undefined, error.message);
     }
     if (!data) {
-        return sendError(res, 409, 'This submission changed while you were editing. Reload the latest version before saving.');
+        return sendError(res, 409, 'This submission changed while you were editing. Reload the latest version before saving.', { server_version: currentDbVersion });
     }
 
     return sendSuccess(res, 200, 'Submission saved successfully.', { submission: data });
